@@ -1,12 +1,18 @@
 package main;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.gson.Gson;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
+import data.Globals;
+import infrastructure.interest.JavaFile;
+import infrastructure.newcode.DiffEntry;
+import infrastructure.newcode.PrincipalResponseEntity;
 import metricsCalculator.calculator.MetricsCalculator;
 
 public class Main {
@@ -16,7 +22,6 @@ public class Main {
 
     private static final Set<String> rootFolders = ConcurrentHashMap.newKeySet();
     private static final Set<JavaFile> javaFiles = ConcurrentHashMap.newKeySet();
-    private static final Set<JavaFile> javaFilesForInterest = ConcurrentHashMap.newKeySet();
 	
     public static void main(String[] args) {
     		projectID="org.apache.bookkeeper:bookkeeper";//args[0];
@@ -26,21 +31,41 @@ public class Main {
 	    	getRootFolders();
 			getJavaFiles(projectPath);
 			System.out.println("number of files: " + javaFiles.size());
+
+
 			
 			getMetricsCalculatorMetrics();
-			
 			getFilesForInterest();
-			
-			TDInterest tdI = new TDInterest(javaFilesForInterest);
-			System.out.println(tdI.getTotalInterest());
-		
+
+//			for (Commit commit : commits) {
+//				for (DiffEntry diffEntry : diffEntries) {
+//
+//				}
+//			}
+
+	}
+
+	private List<DiffEntry> getDiffEntriesAtCommit(String commitId) {
+		HttpResponse<JsonNode> httpResponse;
+		Unirest.setTimeouts(0, 0);
+		try {
+			httpResponse = Unirest.get("http://195.251.210.147:8989/api/sdk4ed/internal/longest-path/with-commit-changes?url=https://github.com/apache/commons-io&sha=" + commitId).asJson();
+			PrincipalResponseEntity[] responseEntities = new Gson().fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
+			List<DiffEntry> diffEntries = new ArrayList<>();
+			for (PrincipalResponseEntity entity : responseEntities)
+				diffEntries.addAll(entity.getDiffEntries());
+			return diffEntries;
+		} catch (UnirestException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	private static void getFilesForInterest() {
 		javaFiles
 				.stream()
 				.filter(jf -> jf.getQualityMetrics().getDIT() != -1)
-				.forEach(javaFilesForInterest::add);
+				.forEach(Globals::addJavaFile);
 	}
 
 	/**
@@ -80,7 +105,7 @@ public class Main {
     	MetricsCalculator.start(projectPath);
 		
 		String[] s = MetricsCalculator.printResults().split("\\r?\\n");
-		for(int i=1; i<s.length; i++) {
+		for(int i=1; i<s.length; ++i) {
 			String[] column = s[i].split(";");
 			
 			String filePath = column[0].replace(".", "/")+".java";

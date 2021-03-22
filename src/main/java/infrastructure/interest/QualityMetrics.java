@@ -1,4 +1,4 @@
-package main;
+package infrastructure.interest;
 
 public final class QualityMetrics {
 
