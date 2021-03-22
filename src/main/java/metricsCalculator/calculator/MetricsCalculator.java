@@ -22,6 +22,7 @@ import metricsCalculator.output.PrintResults;
 import metricsCalculator.visitors.ClassVisitor;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -49,6 +50,20 @@ public class MetricsCalculator {
             return -1;
         }
         startCalculations(sourceRoots);
+        calculateAllMetrics(getCurrentProject());
+        return 0;
+    }
+
+    public static int start(String projectDir, String filePath) {
+        currentProject = projectDir;
+        ProjectRoot projectRoot = getProjectRoot();
+        List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
+        try { createSymbolSolver(); } catch (IllegalStateException e){ return -1; }
+        if (createClassSet(sourceRoots) == 0) {
+            System.err.println("No classes could be identified! Exiting...");
+            System.exit(-1);
+        }
+        startCalculations(sourceRoots, filePath);
         calculateAllMetrics(getCurrentProject());
         return 0;
     }
@@ -136,6 +151,28 @@ public class MetricsCalculator {
                                 .forEach(res -> analyzeCompilationUnit(res.getResult().get(), sourceRoot.getRoot().toString().replace("\\", "/")));
                     } catch (Exception ignored) {}
                 });
+    }
+
+    /**
+     * Starts the calculations
+     *
+     * @param sourceRoots the list of source roots of project
+     *
+     */
+    private static void startCalculations(List<SourceRoot> sourceRoots, String filePath) {
+        sourceRoots.forEach(sourceRoot -> {
+            try {
+                sourceRoot.tryToParse().forEach(res -> {
+                    if (res.getResult().isPresent()) {
+                        CompilationUnit cu = res.getResult().get();
+                        cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
+                            if (c.getFullyQualifiedName().isPresent() && c.getFullyQualifiedName().get().equals(filePath.replace("/", ".")))
+                                analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
+                        });
+                    }
+                });
+            } catch (IOException ignored) {}
+        });
     }
 
     /**

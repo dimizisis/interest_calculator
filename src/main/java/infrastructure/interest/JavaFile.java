@@ -1,7 +1,6 @@
 package infrastructure.interest;
 
 import data.Globals;
-import main.Main;
 
 import java.util.*;
 
@@ -9,12 +8,16 @@ public class JavaFile {
     private String path;
     private QualityMetrics qualityMetrics;
     private TDInterest interest;
+    private Kappa k;
 
     public JavaFile(String path) {
         this.path = path;
-        qualityMetrics = new QualityMetrics();
+        this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
+        this.k = new Kappa();
     }
+
+    public void calculateInterest() { this.getInterest().calculate(); }
 
     public String getPath() { return path; }
 
@@ -28,6 +31,10 @@ public class JavaFile {
 
     public void setInterest(TDInterest interest) { this.interest = interest; }
 
+    public Kappa getK() { return k; }
+
+    public void setK(Kappa k) { this.k = k; }
+
     class TDInterest {
 
         private final Double HOURLY_WAGE = 39.44;
@@ -39,12 +46,15 @@ public class JavaFile {
 
         public TDInterest() {
             this.interestInEuros = 0.0;
-//            this.calculate();
+            this.interestInHours = 0.0;
+            this.interestInAvgLOC = 0.0;
+            this.avgInterestPerLOC = 0.0;
+            this.sumInterestPerLOC = 0.0;
         }
 
-        public void calculate() {
+        void calculate() {
             /* Calculate similarity */
-            AbstractQueue<Similarity> similarityOfFiles = calculateSimilarities(JavaFile.this);
+            AbstractQueue<Similarity> similarityOfFiles = calculateSimilarities();
 
             /* Find Top 5 Neighbors */
             Set<JavaFile> topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
@@ -60,7 +70,7 @@ public class JavaFile {
 			this.avgInterestPerLOC = (sumInterestPerLOC) / 10;
 
             /* Calculate the interest in AVG LOC */
-			this.interestInAvgLOC = avgInterestPerLOC * Main.K;
+			this.interestInAvgLOC = avgInterestPerLOC * JavaFile.this.getK().getValue();
 
             /* Calculate the interest in hours */
             this.interestInHours = interestInAvgLOC / 25;
@@ -68,7 +78,10 @@ public class JavaFile {
             /* Calculate the interest in dollars */
             this.interestInEuros = interestInHours * HOURLY_WAGE;
 
+            JavaFile.this.getK().addLOC(JavaFile.this.getQualityMetrics().getLOC());
+
 			System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.interestInEuros);
+			System.out.println("Kappa: " + JavaFile.this.getK().getValue());
         }
 
         /**
@@ -96,17 +109,16 @@ public class JavaFile {
         }
 
         /**
-         * Calculates the similarity between a file (jf)
+         * Calculates the similarity between a file
          * and all the other files that are available
          *
-         * @param jf the file we are referring to
          * @return the similarity of files (priority queue)
          */
-        private AbstractQueue<Similarity> calculateSimilarities(JavaFile jf) {
+        private AbstractQueue<Similarity> calculateSimilarities() {
             AbstractQueue<Similarity> similarityOfFiles = new PriorityQueue<>(Collections.reverseOrder());
-            for (JavaFile jf2 : Globals.getJavaFiles())
-                if (!Objects.equals(jf, jf2))
-                    similarityOfFiles.add(new Similarity(jf, jf2, 1 - calculateSimilarityIndex(jf, jf2)));
+            for (JavaFile jf : Globals.getJavaFiles())
+                if (!Objects.equals(JavaFile.this, jf))
+                    similarityOfFiles.add(new Similarity(JavaFile.this, jf, 1 - calculateSimilarityIndex(jf)));
             return similarityOfFiles;
         }
 
@@ -130,20 +142,19 @@ public class JavaFile {
          * Calculates the similarity between two java files
          * (jf1, jf2) based on specific quality metrics
          *
-         * @param jf1 the first java file
          * @param jf2 the second java file
          * @return the similarity of these two files (double)
          */
-        private Double calculateSimilarityIndex(JavaFile jf1, JavaFile jf2) {
-            int jfClasses = (jf1.getQualityMetrics().getClassesNum() == 0) ? 1 : jf1.getQualityMetrics().getClassesNum();
-            int jfComplexity = (jf1.getQualityMetrics().getComplexity() == 0) ? 1 : jf1.getQualityMetrics().getComplexity();
-            double jfFunctions = (jf1.getQualityMetrics().getWMC() == 0) ? 1 : jf1.getQualityMetrics().getWMC();
-            int jfLOC = (jf1.getQualityMetrics().getLOC() == 0) ? 1 : jf1.getQualityMetrics().getLOC();
+        private Double calculateSimilarityIndex(JavaFile jf2) {
+            int jfClasses = (JavaFile.this.getQualityMetrics().getClassesNum() == 0) ? 1 : JavaFile.this.getQualityMetrics().getClassesNum();
+            int jfComplexity = (JavaFile.this.getQualityMetrics().getComplexity() == 0) ? 1 : JavaFile.this.getQualityMetrics().getComplexity();
+            double jfFunctions = (JavaFile.this.getQualityMetrics().getWMC() == 0) ? 1 : JavaFile.this.getQualityMetrics().getWMC();
+            int jfLOC = (JavaFile.this.getQualityMetrics().getLOC() == 0) ? 1 : JavaFile.this.getQualityMetrics().getLOC();
 
-            return (Math.abs(jf1.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) * 1.0 / jfClasses
-                    + Math.abs(jf1.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) * 1.0 / jfComplexity
-                    + Math.abs(jf1.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / jfFunctions
-                    + Math.abs(jf1.getQualityMetrics().getLOC() - jf2.getQualityMetrics().getLOC()) * 1.0 / jfLOC
+            return (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) * 1.0 / jfClasses
+                    + Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) * 1.0 / jfComplexity
+                    + Math.abs(JavaFile.this.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / jfFunctions
+                    + Math.abs(JavaFile.this.getQualityMetrics().getLOC() - jf2.getQualityMetrics().getLOC()) * 1.0 / jfLOC
                     / 4);
         }
 
@@ -212,5 +223,23 @@ public class JavaFile {
         public Double getInterestInEuros() {
             return interestInEuros;
         }
+    }
+
+    static class Kappa {
+
+        private Double value;
+        private Integer revisionCount;
+
+        public Kappa() {
+            this.value = 0.0;
+            this.revisionCount = 0;
+        }
+
+        public void addLOC(Integer loc) {
+            this.value = (this.getValue() * this.getRevisionCount() + loc) / ++this.revisionCount;
+        }
+
+        public Double getValue() { return this.value; }
+        public Integer getRevisionCount() { return this.revisionCount; }
     }
 }

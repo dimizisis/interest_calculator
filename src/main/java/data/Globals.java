@@ -1,35 +1,15 @@
 package data;
 
 import infrastructure.interest.JavaFile;
-
-import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class Globals {
 
-    private static final HashSet<JavaFile> javaFiles;
+    private static Set<JavaFile> javaFiles;
     static {
-        javaFiles = new HashSet<>();
+        javaFiles = ConcurrentHashMap.newKeySet();
     }
-
-    public static boolean addJavaFile(JavaFile jf) {
-        return javaFiles.add(jf);
-    }
-
-    public static boolean removeJavaFile(JavaFile jf) {
-        return javaFiles.remove(jf);
-    }
-
-    public static boolean removeJavaFileByPath(String path) {
-        try {
-            javaFiles
-                    .stream()
-                    .filter(javaFile -> javaFile.getPath().equals(path))
-                    .forEach(javaFiles::remove);
-            return true;
-        } catch (Exception ignored) {}
-        return false;
-    }
-
-    public static HashSet<JavaFile> getJavaFiles() { return javaFiles; }
-
+    public static Set<JavaFile> getJavaFiles() { return javaFiles; }
+    public static void setJavaFiles(Set<JavaFile> javaFiles) { Globals.javaFiles = javaFiles; }
 }
