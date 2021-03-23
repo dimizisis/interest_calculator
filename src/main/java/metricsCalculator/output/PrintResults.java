@@ -32,7 +32,7 @@ public class PrintResults implements CkjmOutputHandler {
 	public void printHeader() {
 		this.p.print("Name;");
 		this.p.print("DIT;NOCC;RFC;LCOM;WMC;");						// Chidamber & Kemerer metrics
-		this.p.print("NOM;MPC;DAC;SIZE1;SIZE2\n");	// Li & Henry metrics
+		this.p.print("NOM;MPC;DAC;SIZE1;SIZE2;ClassesNum\n");	// Li & Henry metrics
 	}
 	
    public void handleClass(String name, ClassMetrics c) {

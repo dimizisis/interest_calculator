@@ -8,7 +8,6 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.SwitchStmt;
-import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
@@ -280,11 +279,13 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      * in the class we are referring to
      */
     private int calculateClassesNum(TypeDeclaration<?> javaClass) {
-        return Math.toIntExact(javaClass
-                .getMembers()
-                .stream()
-                .filter(BodyDeclaration::isClassOrInterfaceDeclaration)
-                .count());
+        Integer classesNum = 1;
+        for (BodyDeclaration<?> member : javaClass.getMembers()) {
+            if (member.isClassOrInterfaceDeclaration()){
+                ++classesNum;
+            }
+        }
+        return classesNum;
     }
 
     /**

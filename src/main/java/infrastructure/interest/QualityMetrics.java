@@ -3,7 +3,6 @@ package infrastructure.interest;
 public final class QualityMetrics {
 
     private Integer classesNum;
-    private Integer LOC;
     private Integer complexity;
     private Integer DIT;
     private Integer NOCC;
@@ -18,7 +17,6 @@ public final class QualityMetrics {
 
     public QualityMetrics() {
         this.classesNum = 0;
-        this.LOC = 0;
         this.complexity = 0;
         this.DIT = -1;
         this.NOCC = -1;
@@ -32,10 +30,9 @@ public final class QualityMetrics {
         this.SIZE2 = -1;
     }
 
-    public QualityMetrics(Integer classesNum, Integer LOC, Integer complexity, Integer DIT, Integer NOCC,
+    public QualityMetrics(Integer classesNum, Integer complexity, Integer DIT, Integer NOCC,
                           Double RFC, Double LCOM, Double WMC, Double NOM, Integer MPC, Integer DAC, Integer SIZE1, Integer SIZE2) {
         this.classesNum = classesNum;
-        this.LOC = LOC;
         this.complexity = complexity;
         this.DIT = DIT;
         this.NOCC = NOCC;
@@ -85,10 +82,6 @@ public final class QualityMetrics {
         return classesNum;
     }
 
-    public Integer getLOC() {
-        return LOC;
-    }
-
     public Integer getComplexity() {
         return complexity;
     }
@@ -135,10 +128,6 @@ public final class QualityMetrics {
 
     public void setClassesNum(Integer classesNum) {
         this.classesNum = classesNum;
-    }
-
-    public void setLOC(Integer LOC) {
-        this.LOC = LOC;
     }
 
     public void setComplexity(Integer complexity) {

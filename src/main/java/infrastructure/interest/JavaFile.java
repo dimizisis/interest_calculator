@@ -17,7 +17,9 @@ public class JavaFile {
         this.k = new Kappa();
     }
 
-    public void calculateInterest() { this.getInterest().calculate(); }
+    public void calculateInterest() {
+        this.getInterest().calculate();
+    }
 
     public String getPath() { return path; }
 
@@ -78,7 +80,7 @@ public class JavaFile {
             /* Calculate the interest in dollars */
             this.interestInEuros = interestInHours * HOURLY_WAGE;
 
-            JavaFile.this.getK().addLOC(JavaFile.this.getQualityMetrics().getLOC());
+            JavaFile.this.getK().addLOC(JavaFile.this.getQualityMetrics().getSIZE1());
 
 			System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.interestInEuros);
 			System.out.println("Kappa: " + JavaFile.this.getK().getValue());
@@ -149,12 +151,12 @@ public class JavaFile {
             int jfClasses = (JavaFile.this.getQualityMetrics().getClassesNum() == 0) ? 1 : JavaFile.this.getQualityMetrics().getClassesNum();
             int jfComplexity = (JavaFile.this.getQualityMetrics().getComplexity() == 0) ? 1 : JavaFile.this.getQualityMetrics().getComplexity();
             double jfFunctions = (JavaFile.this.getQualityMetrics().getWMC() == 0) ? 1 : JavaFile.this.getQualityMetrics().getWMC();
-            int jfLOC = (JavaFile.this.getQualityMetrics().getLOC() == 0) ? 1 : JavaFile.this.getQualityMetrics().getLOC();
+            int jfLOC = (JavaFile.this.getQualityMetrics().getSIZE1() == 0) ? 1 : JavaFile.this.getQualityMetrics().getSIZE1();
 
             return (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) * 1.0 / jfClasses
                     + Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) * 1.0 / jfComplexity
                     + Math.abs(JavaFile.this.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / jfFunctions
-                    + Math.abs(JavaFile.this.getQualityMetrics().getLOC() - jf2.getQualityMetrics().getLOC()) * 1.0 / jfLOC
+                    + Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - jf2.getQualityMetrics().getSIZE1()) * 1.0 / jfLOC
                     / 4);
         }
 
@@ -170,52 +172,52 @@ public class JavaFile {
             optimalMetrics.setDIT(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getDIT())
-                    .max(Integer::compare)
+                    .min(Integer::compare)
                     .orElse(0));
             optimalMetrics.setNOCC(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getNOCC())
-                    .max(Integer::compare)
+                    .min(Integer::compare)
                     .orElse(0));
             optimalMetrics.setRFC(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getRFC())
-                    .max(Double::compare)
+                    .min(Double::compare)
                     .orElse(0.0));
             optimalMetrics.setLCOM(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getLCOM())
-                    .max(Double::compare)
+                    .min(Double::compare)
                     .orElse(0.0));
             optimalMetrics.setWMC(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getWMC())
-                    .max(Double::compare)
+                    .min(Double::compare)
                     .orElse(0.0));
             optimalMetrics.setNOM(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getNOM())
-                    .max(Double::compare)
+                    .min(Double::compare)
                     .orElse(0.0));
             optimalMetrics.setMPC(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getMPC())
-                    .max(Integer::compare)
+                    .min(Integer::compare)
                     .orElse(0));
             optimalMetrics.setDAC(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getDAC())
-                    .max(Integer::compare)
+                    .min(Integer::compare)
                     .orElse(0));
             optimalMetrics.setSIZE1(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getSIZE1())
-                    .max(Integer::compare)
+                    .min(Integer::compare)
                     .orElse(0));
             optimalMetrics.setSIZE2(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getSIZE2())
-                    .max(Integer::compare)
+                    .min(Integer::compare)
                     .orElse(0));
             return optimalMetrics;
         }

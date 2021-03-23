@@ -100,7 +100,7 @@ public class ClassMetrics extends Metrics {
 		builder.append(this.getMpc()).append(";");
 		builder.append(this.getDac()).append(";");
 		builder.append(this.getSize1()).append(";");
-		builder.append(this.getSize2());
+		builder.append(this.getSize2()).append(";");
 		builder.append(this.getClassesNum());
 
 		return builder.toString();

@@ -11,5 +11,7 @@ public final class Globals {
         javaFiles = ConcurrentHashMap.newKeySet();
     }
     public static Set<JavaFile> getJavaFiles() { return javaFiles; }
-    public static void setJavaFiles(Set<JavaFile> javaFiles) { Globals.javaFiles = javaFiles; }
+    public static void setJavaFiles(Set<JavaFile> javaFiles) {
+        Globals.javaFiles = javaFiles;
+    }
 }

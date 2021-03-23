@@ -7,6 +7,7 @@ import com.google.gson.annotations.SerializedName;
  * @author George Digkas <digasgeo@gmail.com>
  *
  */
+
 public class DiffEntry {
 
 	@SerializedName("oldFilePath")
@@ -31,7 +32,7 @@ public class DiffEntry {
 		return newFilePath;
 	}
 
-	public void setNewFilePath(String newFilePath) {
+	public void setNewFilePathString (String newFilePath) {
 		this.newFilePath = newFilePath;
 	}
 
