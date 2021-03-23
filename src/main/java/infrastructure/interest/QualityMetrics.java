@@ -3,7 +3,7 @@ package infrastructure.interest;
 public final class QualityMetrics {
 
     private Integer classesNum;
-    private Integer complexity;
+    private Double complexity;
     private Integer DIT;
     private Integer NOCC;
     private Double RFC;
@@ -12,69 +12,54 @@ public final class QualityMetrics {
     private Double NOM;
     private Integer MPC;
     private Integer DAC;
+    private Integer oldSIZE1;
     private Integer SIZE1;
     private Integer SIZE2;
 
     public QualityMetrics() {
         this.classesNum = 0;
-        this.complexity = 0;
-        this.DIT = -1;
-        this.NOCC = -1;
-        this.RFC = -1.0;
-        this.LCOM = -1.0;
-        this.WMC = -1.0;
-        this.NOM = -1.0;
-        this.MPC = -1;
-        this.DAC = -1;
-        this.SIZE1 = -1;
-        this.SIZE2 = -1;
-    }
-
-    public QualityMetrics(Integer classesNum, Integer complexity, Integer DIT, Integer NOCC,
-                          Double RFC, Double LCOM, Double WMC, Double NOM, Integer MPC, Integer DAC, Integer SIZE1, Integer SIZE2) {
-        this.classesNum = classesNum;
-        this.complexity = complexity;
-        this.DIT = DIT;
-        this.NOCC = NOCC;
-        this.RFC = RFC;
-        this.LCOM = LCOM;
-        this.WMC = WMC;
-        this.NOM = NOM;
-        this.MPC = MPC;
-        this.DAC = DAC;
-        this.SIZE1 = SIZE1;
-        this.SIZE2 = SIZE2;
+        this.complexity = 0.0;
+        this.DIT = 0;
+        this.NOCC = 0;
+        this.RFC = 0.0;
+        this.LCOM = 0.0;
+        this.WMC = 0.0;
+        this.NOM = 0.0;
+        this.MPC = 0;
+        this.DAC = 0;
+        this.SIZE1 = 0;
+        this.SIZE2 = 0;
     }
 
     public void normalize() {
-        if (DIT == 0)
+        if (DIT <= 0)
             DIT = 1;
 
-        if (NOCC == 0)
+        if (NOCC <= 0)
             NOCC = 1;
 
-        if (RFC == 0)
+        if (RFC <= 0)
             RFC = 1.0;
 
-        if (LCOM == 0)
+        if (LCOM <= 0)
             LCOM = 1.0;
 
-        if (WMC == 0)
+        if (WMC <= 0)
             WMC = 1.0;
 
-        if (NOM == 0)
+        if (NOM <= 0)
             NOM = 1.0;
 
-        if (MPC == 0)
+        if (MPC <= 0)
             MPC = 1;
 
-        if (DAC == 0)
+        if (DAC <= 0)
             DAC = 1;
 
-        if (SIZE1 == 0)
+        if (SIZE1 <= 0)
             SIZE1 = 1;
 
-        if (SIZE2 == 0)
+        if (SIZE2 <= 0)
             SIZE2 = 1;
     }
 
@@ -82,7 +67,7 @@ public final class QualityMetrics {
         return classesNum;
     }
 
-    public Integer getComplexity() {
+    public Double getComplexity() {
         return complexity;
     }
 
@@ -126,11 +111,15 @@ public final class QualityMetrics {
         return SIZE2;
     }
 
+    public Integer getOldSIZE1() {
+        return oldSIZE1;
+    }
+
     public void setClassesNum(Integer classesNum) {
         this.classesNum = classesNum;
     }
 
-    public void setComplexity(Integer complexity) {
+    public void setComplexity(Double complexity) {
         this.complexity = complexity;
     }
 
@@ -164,6 +153,10 @@ public final class QualityMetrics {
 
     public void setDAC(Integer DAC) {
         this.DAC = DAC;
+    }
+
+    public void setOldSIZE1(Integer oldSIZE1) {
+        this.oldSIZE1 = oldSIZE1;
     }
 
     public void setSIZE1(Integer SIZE1) {

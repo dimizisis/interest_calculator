@@ -29,6 +29,7 @@ public class MetricsCalculator {
     private static final ProjectMetricsContainer projectMetricsContainer = new ProjectMetricsContainer();
     private static final Set<String> classesToAnalyse = new HashSet<>();
     private static String currentProject;
+    private static ProjectRoot projectRoot;
 
     /**
      * Start the whole process
@@ -38,7 +39,7 @@ public class MetricsCalculator {
      */
     public static int start(String projectDir) {
         currentProject = projectDir;
-        ProjectRoot projectRoot = getProjectRoot();
+        projectRoot = findProjectRoot();
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try { createSymbolSolver(); } catch (IllegalStateException e){ return -1; }
         if (createClassSet(sourceRoots) == 0) {
@@ -57,7 +58,8 @@ public class MetricsCalculator {
      */
     public static int start(String projectDir, String filePath) {
         currentProject = projectDir;
-        ProjectRoot projectRoot = getProjectRoot();
+        projectRoot = findProjectRoot();
+        String s1 = projectRoot.getRoot().toString();
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try {
             createSymbolSolver();
@@ -76,7 +78,14 @@ public class MetricsCalculator {
     /**
      * Get the project root
      */
-    private static ProjectRoot getProjectRoot() {
+    public static ProjectRoot getProjectRoot() {
+        return projectRoot;
+    }
+
+    /**
+     * Find the project root
+     */
+    private static ProjectRoot findProjectRoot() {
 //        System.out.println("Collecting source roots...");
         return new SymbolSolverCollectionStrategy()
                 .collect(Paths.get(getCurrentProject()));

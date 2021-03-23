@@ -87,6 +87,7 @@ public class ClassMetrics extends Metrics {
 		/*
 	 	* Chidamber & Kemerer metrics
 	 	*/
+		builder.append(this.getWmc()).append(";");
 		builder.append(this.getDit()).append(";");
 		builder.append(this.getNoc()).append(";");
 		builder.append(this.getRfc()).append(";");

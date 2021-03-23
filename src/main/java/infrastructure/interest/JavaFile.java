@@ -6,36 +6,62 @@ import java.util.*;
 
 public class JavaFile {
     private String path;
-    private QualityMetrics qualityMetrics;
-    private TDInterest interest;
+    private final QualityMetrics qualityMetrics;
+    private final TDInterest interest;
     private Kappa k;
 
     public JavaFile(String path) {
         this.path = path;
         this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
-        this.k = new Kappa();
+        this.setK(new Kappa());
     }
 
     public void calculateInterest() {
+        this.getK().update(this.getQualityMetrics().getOldSIZE1());
         this.getInterest().calculate();
     }
 
-    public String getPath() { return path; }
+    public String getPath() {
+        return this.path;
+    }
 
-    public void setPath(String path) { this.path = path; }
+    public void setPath(String path) {
+        this.path = path;
+    }
 
-    public QualityMetrics getQualityMetrics() { return qualityMetrics; }
+    public QualityMetrics getQualityMetrics() {
+        return this.qualityMetrics;
+    }
 
-    public void setQualityMetrics(QualityMetrics qualityMetrics) { this.qualityMetrics = qualityMetrics; }
+    public Double getInterestInEuros() {
+        return this.interest.getInterestInHours();
+    }
 
-    public TDInterest getInterest() { return interest; }
+    public TDInterest getInterest() {
+        return this.interest;
+    }
 
-    public void setInterest(TDInterest interest) { this.interest = interest; }
+    public Kappa getK() {
+        return this.k;
+    }
 
-    public Kappa getK() { return k; }
+    public void setK(Kappa k) {
+        this.k = k;
+    }
 
-    public void setK(Kappa k) { this.k = k; }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        JavaFile javaFile = (JavaFile) o;
+        return path.equals(javaFile.path);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(path);
+    }
 
     class TDInterest {
 
@@ -54,7 +80,12 @@ public class JavaFile {
             this.sumInterestPerLOC = 0.0;
         }
 
-        void calculate() {
+        /**
+         * Calculates the interest for the file we are
+         * referring to, finding the optimal metrics
+         * and the top 5 neighbors.
+         */
+        private void calculate() {
             /* Calculate similarity */
             AbstractQueue<Similarity> similarityOfFiles = calculateSimilarities();
 
@@ -67,32 +98,32 @@ public class JavaFile {
 
 			/* Calculate the interest per LOC
                Get difference optimal to actual */
-			this.sumInterestPerLOC = calculateInterestPerLoc(JavaFile.this, optimalMetrics);
+            this.setSumInterestPerLOC(this.calculateInterestPerLoc(JavaFile.this, optimalMetrics));
 
-			this.avgInterestPerLOC = (sumInterestPerLOC) / 10;
+            /* Calculate the average interest per line of code */
+            this.setAvgInterestPerLOC(this.getSumInterestPerLOC() / 10);
 
             /* Calculate the interest in AVG LOC */
-			this.interestInAvgLOC = avgInterestPerLOC * JavaFile.this.getK().getValue();
+            this.setInterestInAvgLOC(this.getAvgInterestPerLOC() * JavaFile.this.getK().getValue());
 
             /* Calculate the interest in hours */
-            this.interestInHours = interestInAvgLOC / 25;
+            this.setInterestInHours(this.getInterestInAvgLOC() / 25);
 
             /* Calculate the interest in dollars */
-            this.interestInEuros = interestInHours * HOURLY_WAGE;
+            this.setInterestInEuros(this.getInterestInHours() * this.HOURLY_WAGE);
 
-            JavaFile.this.getK().addLOC(JavaFile.this.getQualityMetrics().getSIZE1());
-
-			System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.interestInEuros);
-			System.out.println("Kappa: " + JavaFile.this.getK().getValue());
+//            System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.getInterestInEuros());
+//            System.out.println("Kappa: " + JavaFile.this.getK().getValue());
+//            System.out.println("Revisions: " + JavaFile.this.getK().getRevisionCount());
         }
 
         /**
          * Calculates the interest per loc for the file we
-         * are referring to, based on the optical metrics
+         * are referring to, based on the optimal metrics
          * found from the top 5 neighbors.
          *
          * @param jf             the file we are referring to
-         * @param optimalMetrics the optical metrics object
+         * @param optimalMetrics the optimal metrics object
          * @return the interest per line of code (double)
          */
         private Double calculateInterestPerLoc(JavaFile jf, QualityMetrics optimalMetrics) {
@@ -134,7 +165,7 @@ public class JavaFile {
          */
         private Set<JavaFile> findTopFiveNeighbors(AbstractQueue<Similarity> similarityOfFiles) {
             Set<JavaFile> topFiveNeighbors = new HashSet<>();
-            // Keep top 5
+            /* Keep top 5 */
             for (int i = 0; i < 5; ++i)
                 topFiveNeighbors.add(Objects.requireNonNull(similarityOfFiles.poll()).getJf2());
             return topFiveNeighbors;
@@ -149,12 +180,12 @@ public class JavaFile {
          */
         private Double calculateSimilarityIndex(JavaFile jf2) {
             int jfClasses = (JavaFile.this.getQualityMetrics().getClassesNum() == 0) ? 1 : JavaFile.this.getQualityMetrics().getClassesNum();
-            int jfComplexity = (JavaFile.this.getQualityMetrics().getComplexity() == 0) ? 1 : JavaFile.this.getQualityMetrics().getComplexity();
+            double jfComplexity = (JavaFile.this.getQualityMetrics().getComplexity() == 0.0) ? 1.0 : JavaFile.this.getQualityMetrics().getComplexity();
             double jfFunctions = (JavaFile.this.getQualityMetrics().getWMC() == 0) ? 1 : JavaFile.this.getQualityMetrics().getWMC();
             int jfLOC = (JavaFile.this.getQualityMetrics().getSIZE1() == 0) ? 1 : JavaFile.this.getQualityMetrics().getSIZE1();
 
             return (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) * 1.0 / jfClasses
-                    + Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) * 1.0 / jfComplexity
+                    + Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) / jfComplexity
                     + Math.abs(JavaFile.this.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / jfFunctions
                     + Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - jf2.getQualityMetrics().getSIZE1()) * 1.0 / jfLOC
                     / 4);
@@ -222,26 +253,80 @@ public class JavaFile {
             return optimalMetrics;
         }
 
+        public Double getInterestInHours() {
+            return this.interestInHours;
+        }
+
+        public Double getInterestInAvgLOC() {
+            return this.interestInAvgLOC;
+        }
+
+        public Double getAvgInterestPerLOC() {
+            return this.avgInterestPerLOC;
+        }
+
+        public Double getSumInterestPerLOC() {
+            return this.sumInterestPerLOC;
+        }
+
         public Double getInterestInEuros() {
-            return interestInEuros;
+            return this.interestInEuros;
+        }
+
+        public void setInterestInEuros(Double interestInEuros) {
+            this.interestInEuros = interestInEuros;
+        }
+
+        public void setInterestInHours(Double interestInHours) {
+            this.interestInHours = interestInHours;
+        }
+
+        public void setInterestInAvgLOC(Double interestInAvgLOC) {
+            this.interestInAvgLOC = interestInAvgLOC;
+        }
+
+        public void setAvgInterestPerLOC(Double avgInterestPerLOC) {
+            this.avgInterestPerLOC = avgInterestPerLOC;
+        }
+
+        public void setSumInterestPerLOC(Double sumInterestPerLOC) {
+            this.sumInterestPerLOC = sumInterestPerLOC;
         }
     }
 
-    static class Kappa {
+    class Kappa {
 
         private Double value;
         private Integer revisionCount;
 
         public Kappa() {
-            this.value = 0.0;
-            this.revisionCount = 0;
+            this.setValue(0.0);
+            this.setRevisionCount(0);
         }
 
-        public void addLOC(Integer loc) {
-            this.value = (this.getValue() * this.getRevisionCount() + loc) / ++this.revisionCount;
+        public void update(Integer oldLOC) {
+            this.incrementRevisionCount();
+            this.setValue((this.getValue() * (this.getRevisionCount() - 1) + (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - oldLOC))) / this.getRevisionCount());
         }
 
-        public Double getValue() { return this.value; }
-        public Integer getRevisionCount() { return this.revisionCount; }
+        public Double getValue() {
+            return this.value;
+        }
+
+        public Integer getRevisionCount() {
+            return this.revisionCount;
+        }
+
+        public void setValue(Double newVal) {
+            this.value = newVal;
+        }
+
+        public void setRevisionCount(Integer revisionCount) {
+            this.revisionCount = revisionCount;
+        }
+
+        private void incrementRevisionCount() {
+            ++this.revisionCount;
+        }
     }
 }

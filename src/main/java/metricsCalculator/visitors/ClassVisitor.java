@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
-    private String myClassName;
+    private String myFile;
     private final ClassMetricsContainer classMetricsContainer;
     private ClassMetrics classMetrics;
     private final Set<String> efferentCoupledClasses = new HashSet<>();
@@ -38,12 +38,12 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         this.classMetricsContainer = classMap;
         this.compilationUnit = cu;
         try {
-            this.myClassName = jc.resolve().getQualifiedName();
+            this.myFile = cu.getStorage().get().getSourceRoot().toString().replace("\\", "/").replace(MetricsCalculator.getProjectRoot().getRoot().toString().replace("\\", "/"), "").substring(1) + "/" + jc.resolve().getQualifiedName().replace(".", "/");
         }catch (Exception e){
             return;
         }
         this.classMetrics = this.classMetricsContainer
-                .getMetrics(this.myClassName);
+                .getMetrics(this.myFile);
         this.srcRoot = srcRoot;
     }
 
@@ -55,7 +55,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         if (packageName == null) return;
 
-        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myClassName, this.classMetrics);
+        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myFile, this.classMetrics);
         MetricsCalculator.getPackageMetricsContainer().addPackage(packageName);
 
         this.classMetrics.setVisited();
@@ -75,7 +75,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         if (packageName == null) return;
 
-        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myClassName, this.classMetrics);
+        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myFile, this.classMetrics);
         MetricsCalculator.getPackageMetricsContainer().addPackage(packageName);
 
         this.classMetrics.setVisited();
@@ -279,7 +279,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      * in the class we are referring to
      */
     private int calculateClassesNum(TypeDeclaration<?> javaClass) {
-        Integer classesNum = 1;
+        int classesNum = 1;
         for (BodyDeclaration<?> member : javaClass.getMembers()) {
             if (member.isClassOrInterfaceDeclaration()){
                 ++classesNum;
@@ -446,18 +446,18 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      */
     private void registerCoupling(String className) {
         String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.')+1) : className.substring(className.lastIndexOf('.'));
-        String simpleMyClassName = this.myClassName.contains(".") ? this.myClassName.substring(this.myClassName.lastIndexOf('.')+1) : this.myClassName.substring(this.myClassName.lastIndexOf('.'));
+        String simpleMyClassName = this.myFile.contains(".") ? this.myFile.substring(this.myFile.lastIndexOf('.')+1) : this.myFile.substring(this.myFile.lastIndexOf('.'));
 
         if (this.compilationUnit.getClassByName(simpleClassName).isPresent() && this.compilationUnit.getClassByName(simpleMyClassName).isPresent()) {
             ClassOrInterfaceDeclaration cl = this.compilationUnit.getClassByName(simpleClassName).get();
             ClassOrInterfaceDeclaration myCl = this.compilationUnit.getClassByName(simpleMyClassName).get();
 
-            if ((withinAnalysisBounds(className)) && (!this.myClassName.equals(className))) {
+            if ((withinAnalysisBounds(className)) && (!this.myFile.equals(className))) {
                 if (cl.isTopLevelType() && (myCl.isInnerClass() || myCl.isNestedType()))
                     return;
                 if (cl.isAncestorOf(myCl) && !cl.isInterface())
                     this.efferentCoupledClasses.add(className);
-                this.classMetricsContainer.getMetrics(className).addAfferentCoupling(this.myClassName);
+                this.classMetricsContainer.getMetrics(className).addAfferentCoupling(this.myFile);
             }
         }
     }
@@ -468,7 +468,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      * @param  fieldName the field we are referring to
      */
     private void registerFieldAccess(String fieldName) {
-        registerCoupling(this.myClassName);
+        registerCoupling(this.myFile);
         this.methodIntersection.get(this.methodIntersection.size() - 1).add(fieldName);
     }
 
@@ -521,28 +521,6 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                     validInterfaces.add(resolvedReferenceType);
             } catch (Exception ignored) {}
         }
-        return validInterfaces;
-    }
-
-    /**
-     * Get valid interfaces (ancestors) of ancestors given
-     *
-     * @param  ancestors list of ancestors
-     *
-     * @return list of valid interfaces
-     */
-    private List<ResolvedReferenceType> getValidInterfaces(List<ResolvedReferenceType> ancestors) {
-        ArrayList<ResolvedReferenceType> validInterfaces = new ArrayList<>();
-        try {
-            for (ResolvedReferenceType ancestor : ancestors) {
-                for (int i = 0; i < ancestor.getAllInterfacesAncestors().size(); ++i) {
-                    try {
-                        if (withinAnalysisBounds(ancestor.getAllInterfacesAncestors().get(i).getQualifiedName()))
-                            validInterfaces.add(ancestor.getAllInterfacesAncestors().get(i));
-                    } catch (Exception ignored) {}
-                }
-            }
-        }catch (Exception e){ return new ArrayList<>(); }
         return validInterfaces;
     }
 
