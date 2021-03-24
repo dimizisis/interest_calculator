@@ -112,9 +112,9 @@ public class JavaFile {
             /* Calculate the interest in dollars */
             this.setInterestInEuros(this.getInterestInHours() * this.HOURLY_WAGE);
 
-//            System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.getInterestInEuros());
-//            System.out.println("Kappa: " + JavaFile.this.getK().getValue());
-//            System.out.println("Revisions: " + JavaFile.this.getK().getRevisionCount());
+            System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.getInterestInEuros());
+            System.out.println("Kappa: " + JavaFile.this.getK().getValue());
+            System.out.println("Revisions: " + Globals.getRevisions());
         }
 
         /**
@@ -297,36 +297,21 @@ public class JavaFile {
     class Kappa {
 
         private Double value;
-        private Integer revisionCount;
 
         public Kappa() {
             this.setValue(0.0);
-            this.setRevisionCount(0);
         }
 
         public void update(Integer oldLOC) {
-            this.incrementRevisionCount();
-            this.setValue((this.getValue() * (this.getRevisionCount() - 1) + (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - oldLOC))) / this.getRevisionCount());
+            this.setValue((this.getValue() * (Globals.getRevisions() - 1) + (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - oldLOC))) / Globals.getRevisions());
         }
 
         public Double getValue() {
             return this.value;
         }
 
-        public Integer getRevisionCount() {
-            return this.revisionCount;
-        }
-
         public void setValue(Double newVal) {
             this.value = newVal;
-        }
-
-        public void setRevisionCount(Integer revisionCount) {
-            this.revisionCount = revisionCount;
-        }
-
-        private void incrementRevisionCount() {
-            ++this.revisionCount;
         }
     }
 }

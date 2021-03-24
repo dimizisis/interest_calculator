@@ -24,12 +24,21 @@ import java.util.*;
 
 public class MetricsCalculator {
 
-    private static final ClassMetricsContainer classMetricsContainer = new ClassMetricsContainer();
-    private static final PackageMetricsContainer packageMetricsContainer = new PackageMetricsContainer();
-    private static final ProjectMetricsContainer projectMetricsContainer = new ProjectMetricsContainer();
-    private static final Set<String> classesToAnalyse = new HashSet<>();
+    private static ClassMetricsContainer classMetricsContainer = new ClassMetricsContainer();
+    private static PackageMetricsContainer packageMetricsContainer = new PackageMetricsContainer();
+    private static ProjectMetricsContainer projectMetricsContainer = new ProjectMetricsContainer();
+    private static Set<String> classesToAnalyse = new HashSet<>();
     private static String currentProject;
     private static ProjectRoot projectRoot;
+
+    public static void reset() {
+        classMetricsContainer = new ClassMetricsContainer();
+        packageMetricsContainer = new PackageMetricsContainer();
+        projectMetricsContainer = new ProjectMetricsContainer();
+        classesToAnalyse = new HashSet<>();
+        currentProject = "";
+        projectRoot = null;
+    }
 
     /**
      * Start the whole process
@@ -148,15 +157,17 @@ public class MetricsCalculator {
     private static void startCalculations(List<SourceRoot> sourceRoots, String filePath) {
         sourceRoots.forEach(sourceRoot -> {
             try {
-                sourceRoot.tryToParse().forEach(res -> {
-                    if (res.getResult().isPresent()) {
-                        CompilationUnit cu = res.getResult().get();
-                        cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
-                            if (cu.getStorage().isPresent() && cu.getStorage().get().getPath().toString().replace("\\", "/").equals(filePath))
+                sourceRoot.tryToParse()
+                        .stream()
+                        .filter(res -> res.getResult().isPresent())
+                        .filter(res -> res.getResult().get().getStorage().isPresent())
+                        .filter(res -> res.getResult().get().getStorage().get().getSourceRoot().toString().replace("\\", "/").replace(MetricsCalculator.getProjectRoot().getRoot().toString().replace("\\", "/"), "").substring(1).equals(filePath))
+                        .forEach(res -> {
+                            CompilationUnit cu = res.getResult().get();
+                            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
                                 analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
+                            });
                         });
-                    }
-                });
             } catch (IOException ignored) {
             }
         });

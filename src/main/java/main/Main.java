@@ -31,13 +31,13 @@ public class Main {
         setMetrics(CLONE_PATH);
 
         for (int i = 1; i < Objects.requireNonNull(responseEntities).length; ++i) {
+            Globals.incrementRevisions();
             checkout(git, responseEntities[i].getSha());
             removeDeletedFiles(responseEntities[i].getDiffEntries());
             Set<JavaFile> newFiles = findNewFiles(responseEntities[i].getDiffEntries());
             Set<JavaFile> modifiedFiles = findModifiedFiles(responseEntities[i].getDiffEntries());
             setMetrics(CLONE_PATH, newFiles);
             setMetrics(CLONE_PATH, modifiedFiles);
-            Globals.getJavaFiles().addAll(newFiles);
         }
         System.out.println("File count: " + Globals.getJavaFiles().size());
         for (JavaFile file : Globals.getJavaFiles()) {
@@ -75,7 +75,6 @@ public class Main {
                             modifiedFiles.add(javaFile);
                         }
                     }
-                    Globals.getJavaFiles().removeIf(javaFile -> javaFile.getPath().endsWith(diffEntry.getOldFilePath()));
                 });
         return modifiedFiles;
     }
@@ -114,12 +113,11 @@ public class Main {
         for (JavaFile jf : jfs) {
             MetricsCalculator.start(projectPath, jf.getPath().replace("\\", "/"));
             String st = MetricsCalculator.printResults();
+            MetricsCalculator.reset();
             String[] s = st.split("\\r?\\n");
-            for (int i = 1; i < s.length; ++i) {
-                String[] column = s[i].split(";");
-                String filePath = column[0] + ".java";
-                registerMetrics(column, filePath, jfs);
-            }
+            String[] column = s[1].split(";");
+            registerMetrics(column, jf);
+            Globals.getJavaFiles().add(jf);
         }
     }
 
@@ -129,6 +127,7 @@ public class Main {
     private static void setMetrics(String projectPath) {
         MetricsCalculator.start(projectPath);
         String st = MetricsCalculator.printResults();
+        MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");
         for (int i = 1; i < s.length; ++i) {
             String[] column = s[i].split(";");
@@ -154,26 +153,20 @@ public class Main {
         Globals.getJavaFiles().add(jf);
     }
 
-    private static void registerMetrics(String[] column, String filePath, Set<JavaFile> jfs) {
-        for (JavaFile jf : jfs) {
-            if (jf.getPath().endsWith(filePath)) {
-                jf.getQualityMetrics().setWMC(Double.parseDouble(column[1]));
-                jf.getQualityMetrics().setDIT(Integer.parseInt(column[2]));
-                jf.getQualityMetrics().setNOCC(Integer.parseInt(column[3]));
-                jf.getQualityMetrics().setRFC(Double.parseDouble(column[4]));
-                jf.getQualityMetrics().setLCOM(Double.parseDouble(column[5]));
-                jf.getQualityMetrics().setComplexity(Double.parseDouble(column[6]));
-                jf.getQualityMetrics().setNOM(Double.parseDouble(column[7]));
-                jf.getQualityMetrics().setMPC(Integer.parseInt(column[8]));
-                jf.getQualityMetrics().setDAC(Integer.parseInt(column[9]));
-                jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
-                jf.getQualityMetrics().setSIZE1(Integer.parseInt(column[10]));
-                jf.getQualityMetrics().setSIZE2(Integer.parseInt(column[11]));
-                jf.getQualityMetrics().setClassesNum(Integer.parseInt(column[12]));
-                if (!Globals.getJavaFiles().isEmpty())
-                    jf.calculateInterest();
-                break;
-            }
-        }
+    private static void registerMetrics(String[] column, JavaFile jf) {
+        jf.getQualityMetrics().setWMC(Double.parseDouble(column[1]));
+        jf.getQualityMetrics().setDIT(Integer.parseInt(column[2]));
+        jf.getQualityMetrics().setNOCC(Integer.parseInt(column[3]));
+        jf.getQualityMetrics().setRFC(Double.parseDouble(column[4]));
+        jf.getQualityMetrics().setLCOM(Double.parseDouble(column[5]));
+        jf.getQualityMetrics().setComplexity(Double.parseDouble(column[6]));
+        jf.getQualityMetrics().setNOM(Double.parseDouble(column[7]));
+        jf.getQualityMetrics().setMPC(Integer.parseInt(column[8]));
+        jf.getQualityMetrics().setDAC(Integer.parseInt(column[9]));
+        jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
+        jf.getQualityMetrics().setSIZE1(Integer.parseInt(column[10]));
+        jf.getQualityMetrics().setSIZE2(Integer.parseInt(column[11]));
+        jf.getQualityMetrics().setClassesNum(Integer.parseInt(column[12]));
+        jf.calculateInterest();
     }
 }
