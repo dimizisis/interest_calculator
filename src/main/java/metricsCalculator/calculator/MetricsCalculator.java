@@ -44,13 +44,16 @@ public class MetricsCalculator {
      * Start the whole process
      *
      * @return 0 if everything went ok, -1 otherwise
-     *
      */
     public static int start(String projectDir) {
         currentProject = projectDir;
         projectRoot = findProjectRoot();
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
-        try { createSymbolSolver(); } catch (IllegalStateException e){ return -1; }
+        try {
+            createSymbolSolver();
+        } catch (IllegalStateException e) {
+            return -1;
+        }
         if (createClassSet(sourceRoots) == 0) {
             System.err.println("No classes could be identified! Exiting...");
             System.exit(-1);
@@ -161,7 +164,7 @@ public class MetricsCalculator {
                         .stream()
                         .filter(res -> res.getResult().isPresent())
                         .filter(res -> res.getResult().get().getStorage().isPresent())
-                        .filter(res -> res.getResult().get().getStorage().get().getSourceRoot().toString().replace("\\", "/").replace(MetricsCalculator.getProjectRoot().getRoot().toString().replace("\\", "/"), "").substring(1).equals(filePath))
+                        .filter(res -> res.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").endsWith(filePath))
                         .forEach(res -> {
                             CompilationUnit cu = res.getResult().get();
                             cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
@@ -172,6 +175,7 @@ public class MetricsCalculator {
             }
         });
     }
+
     private static void startCalculations(List<SourceRoot> sourceRoots) {
         sourceRoots
                 .forEach(sourceRoot -> {

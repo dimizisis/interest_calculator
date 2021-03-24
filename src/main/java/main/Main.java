@@ -46,6 +46,11 @@ public class Main {
 
     }
 
+    /**
+     * Removes those files that are marked as 'DELETED' (new code's call)
+     *
+     * @param diffEntries the modified java files (new, modified, deleted)
+     */
     private static void removeDeletedFiles(List<DiffEntry> diffEntries) {
         diffEntries
                 .stream()
@@ -53,6 +58,12 @@ public class Main {
                 .forEach(diffEntry -> Globals.getJavaFiles().removeIf(javaFile -> javaFile.getPath().endsWith(diffEntry.getOldFilePath())));
     }
 
+    /**
+     * Find those files that are marked as 'NEW' (new code's call)
+     *
+     * @param diffEntries the modified java files (new, modified, deleted)
+     * @return a set containing all the new files
+     */
     private static Set<JavaFile> findNewFiles(List<DiffEntry> diffEntries) {
         Set<JavaFile> newFiles = ConcurrentHashMap.newKeySet();
         diffEntries
@@ -63,6 +74,12 @@ public class Main {
         return newFiles;
     }
 
+    /**
+     * Find those files that are marked as 'MODIFIED' (new code's call)
+     *
+     * @param diffEntries the modified java files (new, modified, deleted)
+     * @return a set containing all the modified files
+     */
     private static Set<JavaFile> findModifiedFiles(List<DiffEntry> diffEntries) {
         Set<JavaFile> modifiedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
@@ -79,6 +96,13 @@ public class Main {
         return modifiedFiles;
     }
 
+    /**
+     * Clones a repo to a specified path.
+     *
+     * @param gitUrl    the repo's URL
+     * @param clonePath the path we are cloning to
+     * @return a git object (will be used for checkouts)
+     */
     private static Git cloneRepository(String gitUrl, String clonePath) throws Exception {
         try {
             return Git.cloneRepository()
@@ -90,8 +114,14 @@ public class Main {
         }
     }
 
+    /**
+     * Checkouts to specified commitId (SHA)
+     *
+     * @param git      a git object (used to clone the repo)
+     * @param commitId the SHA we are checking out to
+     */
     private static void checkout(Git git, String commitId) throws GitAPIException {
-        git.checkout().setCreateBranch(true).setName(commitId).call();
+        git.checkout().setName(commitId).call();
     }
 
     private static PrincipalResponseEntity[] getResponseEntities() {
@@ -107,66 +137,68 @@ public class Main {
     }
 
     /**
-     * Get Metrics from Metrics Calculator for every java file
-     */
-    private static void setMetrics(String projectPath, Set<JavaFile> jfs) {
-        for (JavaFile jf : jfs) {
-            MetricsCalculator.start(projectPath, jf.getPath().replace("\\", "/"));
-            String st = MetricsCalculator.printResults();
-            MetricsCalculator.reset();
-            String[] s = st.split("\\r?\\n");
-            String[] column = s[1].split(";");
-            registerMetrics(column, jf);
-            Globals.getJavaFiles().add(jf);
-        }
-    }
-
-    /**
-     * Get Metrics from Metrics Calculator for every java file
+     * Get Metrics from Metrics Calculator for every java file (initial calculation)
+     *
+     * @param projectPath the project root
      */
     private static void setMetrics(String projectPath) {
         MetricsCalculator.start(projectPath);
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
-        String[] s = st.split("\\r?\\n");
-        for (int i = 1; i < s.length; ++i) {
-            String[] column = s[i].split(";");
-            String filePath = column[0] + ".java";
-            registerMetrics(column, filePath);
+        try {
+            String[] s = st.split("\\r?\\n");
+            for (int i = 1; i < s.length; ++i) {
+                String[] column = s[i].split(";");
+                String filePath = column[0] + ".java";
+                JavaFile jf = new JavaFile(filePath);
+                registerMetrics(column, jf);
+                Globals.addJavaFile(jf);
+            }
+        } catch (Exception ignored) {
         }
     }
 
-    private static void registerMetrics(String[] column, String filePath) {
-        JavaFile jf = new JavaFile(filePath);
-        jf.getQualityMetrics().setWMC(Double.parseDouble(column[1]));
-        jf.getQualityMetrics().setDIT(Integer.parseInt(column[2]));
-        jf.getQualityMetrics().setNOCC(Integer.parseInt(column[3]));
-        jf.getQualityMetrics().setRFC(Double.parseDouble(column[4]));
-        jf.getQualityMetrics().setLCOM(Double.parseDouble(column[5]));
-        jf.getQualityMetrics().setComplexity(Double.parseDouble(column[6]));
-        jf.getQualityMetrics().setNOM(Double.parseDouble(column[7]));
-        jf.getQualityMetrics().setMPC(Integer.parseInt(column[8]));
-        jf.getQualityMetrics().setDAC(Integer.parseInt(column[9]));
-        jf.getQualityMetrics().setSIZE1(Integer.parseInt(column[10]));
-        jf.getQualityMetrics().setSIZE2(Integer.parseInt(column[11]));
-        jf.getQualityMetrics().setClassesNum(Integer.parseInt(column[12]));
-        Globals.getJavaFiles().add(jf);
+    /**
+     * Get Metrics from Metrics Calculator for specific java files (new or modified)
+     *
+     * @param projectPath the project root
+     * @param jfs         the list of java files
+     */
+    private static void setMetrics(String projectPath, Set<JavaFile> jfs) {
+        try {
+            for (JavaFile jf : jfs) {
+                MetricsCalculator.start(projectPath, jf.getPath().replace("\\", "/"));
+                String st = MetricsCalculator.printResults();
+                MetricsCalculator.reset();
+                String[] s = st.split("\\r?\\n");
+                String[] column = s[1].split(";");
+                registerMetrics(column, jf);
+                Globals.addJavaFile(jf);
+            }
+            jfs.forEach(JavaFile::calculateInterest);
+        } catch (Exception ignored) {
+        }
     }
 
-    private static void registerMetrics(String[] column, JavaFile jf) {
-        jf.getQualityMetrics().setWMC(Double.parseDouble(column[1]));
-        jf.getQualityMetrics().setDIT(Integer.parseInt(column[2]));
-        jf.getQualityMetrics().setNOCC(Integer.parseInt(column[3]));
-        jf.getQualityMetrics().setRFC(Double.parseDouble(column[4]));
-        jf.getQualityMetrics().setLCOM(Double.parseDouble(column[5]));
-        jf.getQualityMetrics().setComplexity(Double.parseDouble(column[6]));
-        jf.getQualityMetrics().setNOM(Double.parseDouble(column[7]));
-        jf.getQualityMetrics().setMPC(Integer.parseInt(column[8]));
-        jf.getQualityMetrics().setDAC(Integer.parseInt(column[9]));
+    /**
+     * Register Metrics to specified java file
+     *
+     * @param calcEntries entries taken from MetricsCalculator's results
+     * @param jf          the java file we are registering metrics to
+     */
+    private static void registerMetrics(String[] calcEntries, JavaFile jf) {
+        jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[1]));
+        jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[2]));
+        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[3]));
+        jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[4]));
+        jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[5]));
+        jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[6]));
+        jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[7]));
+        jf.getQualityMetrics().setMPC(Integer.parseInt(calcEntries[8]));
+        jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[9]));
         jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
-        jf.getQualityMetrics().setSIZE1(Integer.parseInt(column[10]));
-        jf.getQualityMetrics().setSIZE2(Integer.parseInt(column[11]));
-        jf.getQualityMetrics().setClassesNum(Integer.parseInt(column[12]));
-        jf.calculateInterest();
+        jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[10]));
+        jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[11]));
+        jf.getQualityMetrics().setClassesNum(Integer.parseInt(calcEntries[12]));
     }
 }

@@ -89,6 +89,10 @@ public class JavaFile {
             /* Calculate similarity */
             AbstractQueue<Similarity> similarityOfFiles = calculateSimilarities();
 
+            /* No need to proceed to interest calculation */
+            if (similarityOfFiles.isEmpty())
+                return;
+
             /* Find Top 5 Neighbors */
             Set<JavaFile> topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
 
@@ -165,6 +169,8 @@ public class JavaFile {
          */
         private Set<JavaFile> findTopFiveNeighbors(AbstractQueue<Similarity> similarityOfFiles) {
             Set<JavaFile> topFiveNeighbors = new HashSet<>();
+            if (similarityOfFiles.size() < 5)
+                return null;
             /* Keep top 5 */
             for (int i = 0; i < 5; ++i)
                 topFiveNeighbors.add(Objects.requireNonNull(similarityOfFiles.poll()).getJf2());
