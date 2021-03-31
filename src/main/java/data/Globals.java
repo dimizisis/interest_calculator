@@ -10,10 +10,14 @@ public final class Globals {
 
     private static final Set<JavaFile> javaFiles;
     private static final AtomicInteger revisions;
+    private static String currentSha;
+    private static String projectURL;
 
     static {
         javaFiles = ConcurrentHashMap.newKeySet();
         revisions = new AtomicInteger(1);
+        currentSha = "";
+        projectURL = "";
     }
 
     public static Set<JavaFile> getJavaFiles() {
@@ -21,11 +25,14 @@ public final class Globals {
     }
 
     public static void addJavaFile(JavaFile jf) {
-        javaFiles.add(jf);
+        if(!getJavaFiles().add(jf)) {
+            getJavaFiles().remove(jf);
+            getJavaFiles().add(jf);
+        }
     }
 
-    public static void addJavaFiles(Set<JavaFile> jfs) {
-        javaFiles.addAll(jfs);
+    public static String getProjectURL() {
+        return projectURL;
     }
 
     public static Integer getRevisions() {
@@ -34,5 +41,17 @@ public final class Globals {
 
     public static void incrementRevisions() {
         revisions.incrementAndGet();
+    }
+
+    public synchronized static void setCurrentSha(String sha) {
+        currentSha = sha;
+    }
+
+    public synchronized static String getCurrentSha() {
+        return currentSha;
+    }
+
+    public static void setProjectURL(String url) {
+        projectURL = url;
     }
 }

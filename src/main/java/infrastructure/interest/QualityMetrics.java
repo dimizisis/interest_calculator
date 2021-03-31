@@ -1,7 +1,10 @@
 package infrastructure.interest;
 
+import data.Globals;
+
 public final class QualityMetrics {
 
+    private String sha;
     private Integer classesNum;
     private Double complexity;
     private Integer DIT;
@@ -29,6 +32,7 @@ public final class QualityMetrics {
         this.DAC = 0;
         this.SIZE1 = 0;
         this.SIZE2 = 0;
+        this.sha = Globals.getCurrentSha();
     }
 
     public void normalize() {
@@ -115,6 +119,10 @@ public final class QualityMetrics {
         return oldSIZE1;
     }
 
+    public String getSha() {
+        return this.sha;
+    }
+
     public void setClassesNum(Integer classesNum) {
         this.classesNum = classesNum;
     }
@@ -165,5 +173,9 @@ public final class QualityMetrics {
 
     public void setSIZE2(Integer SIZE2) {
         this.SIZE2 = SIZE2;
+    }
+
+    public void setSha(String sha) {
+        this.sha = sha;
     }
 }

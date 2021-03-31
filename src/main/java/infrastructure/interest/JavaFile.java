@@ -42,6 +42,10 @@ public class JavaFile {
         return this.interest;
     }
 
+    public Double getKappaValue() {
+        return this.k.getValue();
+    }
+
     public Kappa getK() {
         return this.k;
     }
@@ -95,6 +99,9 @@ public class JavaFile {
 
             /* Find Top 5 Neighbors */
             Set<JavaFile> topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
+
+            if (Objects.isNull(topFiveNeighbors))
+                return;
 
             /* Get optimal metrics & normalize (add one smoothing) */
             QualityMetrics optimalMetrics = getOptimalMetrics(topFiveNeighbors);

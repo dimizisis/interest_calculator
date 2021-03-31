@@ -10,6 +10,8 @@ import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import data.Globals;
+import db.DatabaseConnection;
+import db.InsertToDB;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
 import infrastructure.newcode.PrincipalResponseEntity;
@@ -18,31 +20,35 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 public class Main {
-    private static final String GIT_SERVICE_URL = "https://github.com/";
-    private static final String OWNER = "AngelikiTsintzira";
-    private static final String REPOSITORY = "Technical-Debt-Management-Toolbox";
-    private static final String CLONE_PATH = "C:/Users/Dimitris/Desktop/" + REPOSITORY;
 
     public static void main(String[] args) throws Exception {
 
-        Git git = cloneRepository(GIT_SERVICE_URL + OWNER + "/" + REPOSITORY, CLONE_PATH);
+        Globals.setProjectURL(args[0]);
+        InsertToDB.insertProjectToDatabase();
+
+        Git git = cloneRepository(args[0], args[1]);
         PrincipalResponseEntity[] responseEntities = getResponseEntities();
+        Globals.setCurrentSha(Objects.requireNonNull(responseEntities)[0].getSha());
         checkout(git, Objects.requireNonNull(responseEntities)[0].getSha());
-        setMetrics(CLONE_PATH);
+        setMetrics(args[1]);
 
         for (int i = 1; i < Objects.requireNonNull(responseEntities).length; ++i) {
             Globals.incrementRevisions();
+            Globals.setCurrentSha(responseEntities[i].getSha());
             checkout(git, responseEntities[i].getSha());
             removeDeletedFiles(responseEntities[i].getDiffEntries());
             Set<JavaFile> newFiles = findNewFiles(responseEntities[i].getDiffEntries());
             Set<JavaFile> modifiedFiles = findModifiedFiles(responseEntities[i].getDiffEntries());
-            setMetrics(CLONE_PATH, newFiles);
-            setMetrics(CLONE_PATH, modifiedFiles);
+            setMetrics(args[1], newFiles);
+            setMetrics(args[1], modifiedFiles);
         }
+
         System.out.println("File count: " + Globals.getJavaFiles().size());
         for (JavaFile file : Globals.getJavaFiles()) {
             System.out.println("File: " + file.getPath());
         }
+
+        DatabaseConnection.closeConnection();
 
     }
 
@@ -128,7 +134,7 @@ public class Main {
         HttpResponse<JsonNode> httpResponse;
         Unirest.setTimeouts(0, 0);
         try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989/api/sdk4ed/internal/longest-path/with-commit-changes?url=" + GIT_SERVICE_URL + OWNER + "/" + REPOSITORY).asJson();
+            httpResponse = Unirest.get("http://195.251.210.147:8989/api/sdk4ed/internal/longest-path/with-commit-changes?url=" + Globals.getProjectURL()).asJson();
             return new Gson().fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
         } catch (UnirestException e) {
             e.printStackTrace();
@@ -142,19 +148,19 @@ public class Main {
      * @param projectPath the project root
      */
     private static void setMetrics(String projectPath) {
-        MetricsCalculator.start(projectPath);
+        int resultCode = MetricsCalculator.start(projectPath);
+        if (resultCode == -1)
+            return;
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
-        try {
-            String[] s = st.split("\\r?\\n");
-            for (int i = 1; i < s.length; ++i) {
-                String[] column = s[i].split(";");
-                String filePath = column[0] + ".java";
-                JavaFile jf = new JavaFile(filePath);
-                registerMetrics(column, jf);
-                Globals.addJavaFile(jf);
-            }
-        } catch (Exception ignored) {
+        String[] s = st.split("\\r?\\n");
+        for (int i = 1; i < s.length; ++i) {
+            String[] column = s[i].split(";");
+            String filePath = column[0] + ".java";
+            JavaFile jf = new JavaFile(filePath);
+            registerMetrics(column, jf);
+            Globals.addJavaFile(jf);
+            InsertToDB.insertMetricsToDatabase(jf);
         }
     }
 
@@ -167,13 +173,16 @@ public class Main {
     private static void setMetrics(String projectPath, Set<JavaFile> jfs) {
         try {
             for (JavaFile jf : jfs) {
-                MetricsCalculator.start(projectPath, jf.getPath().replace("\\", "/"));
+                int resultCode = MetricsCalculator.start(projectPath, jf.getPath().replace("\\", "/"));
+                if (resultCode == -1)
+                    continue;
                 String st = MetricsCalculator.printResults();
                 MetricsCalculator.reset();
                 String[] s = st.split("\\r?\\n");
                 String[] column = s[1].split(";");
                 registerMetrics(column, jf);
                 Globals.addJavaFile(jf);
+                InsertToDB.insertMetricsToDatabase(jf);
             }
             jfs.forEach(JavaFile::calculateInterest);
         } catch (Exception ignored) {

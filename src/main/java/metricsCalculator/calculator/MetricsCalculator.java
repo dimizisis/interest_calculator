@@ -56,7 +56,7 @@ public class MetricsCalculator {
         }
         if (createClassSet(sourceRoots) == 0) {
             System.err.println("No classes could be identified! Exiting...");
-            System.exit(-1);
+            return -1;
         }
         startCalculations(sourceRoots);
         calculateAllMetrics(getCurrentProject());
@@ -71,7 +71,6 @@ public class MetricsCalculator {
     public static int start(String projectDir, String filePath) {
         currentProject = projectDir;
         projectRoot = findProjectRoot();
-        String s1 = projectRoot.getRoot().toString();
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try {
             createSymbolSolver();
@@ -80,7 +79,7 @@ public class MetricsCalculator {
         }
         if (createClassSet(sourceRoots) == 0) {
             System.err.println("No classes could be identified! Exiting...");
-            System.exit(-1);
+            return -1;
         }
         startCalculations(sourceRoots, filePath);
         calculateAllMetrics(getCurrentProject());
