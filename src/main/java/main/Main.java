@@ -11,7 +11,6 @@ import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import data.Globals;
 import db.DatabaseConnection;
-import db.DeleteFromDB;
 import db.InsertToDB;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
@@ -25,33 +24,36 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         Globals.setProjectURL(args[0]);
+        System.out.printf("Cloning %s...\n", args[0]);
+        Git git = cloneRepository(args[0], args[1]);
         InsertToDB.insertProjectToDatabase();
 
-        Git git = cloneRepository(args[0], args[1]);
+        System.out.println("Receiving file changes for all commits...");
         PrincipalResponseEntity[] responseEntities = getResponseEntities();
         Globals.setCurrentSha(Objects.requireNonNull(responseEntities)[0].getSha());
         checkout(git, Objects.requireNonNull(responseEntities)[0].getSha());
+        System.out.println("Received file changes!");
+        System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
         setMetrics(args[1]);
+        System.out.println("Calculated metrics for all files from first commit!");
         Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
 
         for (int i = 1; i < Objects.requireNonNull(responseEntities).length; ++i) {
             Globals.setCurrentSha(responseEntities[i].getSha());
             checkout(git, responseEntities[i].getSha());
             Globals.incrementRevisions();
-            Set<JavaFile> deletedFiles = removeDeletedFiles(responseEntities[i].getDiffEntries());
-//            deletedFiles.forEach(DeleteFromDB::deleteFileFromDatabase);
+            System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
+            removeDeletedFiles(responseEntities[i].getDiffEntries());
             Set<JavaFile> newFiles = findNewFiles(responseEntities[i].getDiffEntries());
             Set<JavaFile> modifiedFiles = findModifiedFiles(responseEntities[i].getDiffEntries());
+            System.out.println("Analyzing new/modified commit files...");
             setMetrics(args[1], newFiles);
             setMetrics(args[1], modifiedFiles);
+            System.out.println("Calculated metrics for all files!");
             Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
         }
-
-//        System.out.println("File count: " + Globals.getJavaFiles().size());
-//        for (JavaFile file : Globals.getJavaFiles()) {
-//            System.out.println("File: " + file.getPath());
-//        }
         DatabaseConnection.closeConnection();
+        System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount());
     }
 
     /**
@@ -118,6 +120,7 @@ public class Main {
      */
     private static Git cloneRepository(String gitUrl, String clonePath) {
         try {
+
             return Git.cloneRepository()
                     .setURI(gitUrl)
                     .setDirectory(new File(clonePath))
@@ -190,12 +193,10 @@ public class Main {
                     String[] column = s[1].split(";");
                     registerMetrics(column, jf);
                     Globals.addJavaFile(jf);
-                } catch (ArrayIndexOutOfBoundsException ingored) {}
+                } catch (ArrayIndexOutOfBoundsException ignored) {}
             }
             jfs.forEach(JavaFile::calculateInterest);
-        } catch (Exception ignored) {
-            ignored.printStackTrace();
-        }
+        } catch (Exception ignored) {}
     }
 
     /**

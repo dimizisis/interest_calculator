@@ -48,6 +48,13 @@
             <version>5.11.0.202103091610-r</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-simple -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.30</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
             <groupId>commons-io</groupId>
@@ -61,7 +68,6 @@
             <artifactId>postgresql</artifactId>
             <version>42.2.19</version>
         </dependency>
-
 
     </dependencies>
 

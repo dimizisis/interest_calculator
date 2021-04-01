@@ -35,8 +35,12 @@ public final class Globals {
         return projectURL;
     }
 
-    public static Integer getRevisions() {
-        return revisions.get();
+    public static Integer getRevisionCount() {
+        return getRevisions().get();
+    }
+
+    public static AtomicInteger getRevisions() {
+        return revisions;
     }
 
     public static void incrementRevisions() {

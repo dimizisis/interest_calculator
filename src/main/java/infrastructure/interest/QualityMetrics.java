@@ -32,6 +32,7 @@ public final class QualityMetrics {
         this.DAC = 0;
         this.SIZE1 = 0;
         this.SIZE2 = 0;
+        this.oldSIZE1 = 0;
         this.sha = Globals.getCurrentSha();
     }
 

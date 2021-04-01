@@ -18,7 +18,7 @@ public class JavaFile {
     }
 
     public void calculateInterest() {
-        this.getK().update(Objects.nonNull(this.getQualityMetrics().getOldSIZE1()) ? this.getQualityMetrics().getOldSIZE1() : 0);
+        this.getK().update(this.getQualityMetrics().getOldSIZE1());
         this.getInterest().calculate();
     }
 
@@ -35,7 +35,7 @@ public class JavaFile {
     }
 
     public Double getInterestInEuros() {
-        return this.interest.getInterestInEuros();
+        return this.getInterest().getInterestInEuros();
     }
 
     public TDInterest getInterest() {
@@ -43,7 +43,7 @@ public class JavaFile {
     }
 
     public Double getKappaValue() {
-        return this.k.getValue();
+        return this.getK().getValue();
     }
 
     public Kappa getK() {
@@ -123,9 +123,9 @@ public class JavaFile {
             /* Calculate the interest in dollars */
             this.setInterestInEuros(this.getInterestInHours() * this.HOURLY_WAGE);
 
-            System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.getInterestInEuros());
-            System.out.println("Kappa: " + JavaFile.this.getK().getValue());
-            System.out.println("Revisions: " + Globals.getRevisions());
+//            System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.getInterestInEuros());
+//            System.out.println("Kappa: " + JavaFile.this.getK().getValue());
+//            System.out.println("Revisions: " + Globals.getRevisions());
         }
 
         /**
@@ -316,7 +316,7 @@ public class JavaFile {
         }
 
         public void update(Integer oldLOC) {
-            this.setValue((this.getValue() * (Globals.getRevisions() - 1) + (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - oldLOC))) / Globals.getRevisions());
+            this.setValue((this.getValue() * (Globals.getRevisionCount() - 1) + (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - oldLOC))) / Globals.getRevisionCount());
         }
 
         public Double getValue() {

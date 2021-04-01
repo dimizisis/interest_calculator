@@ -40,7 +40,7 @@ public class InsertToDB {
 
             PreparedStatement st = conn.prepareStatement("INSERT INTO metrics (classes_num, " +
                     "complexity, dac, dit, file_path, interest_eu, lcom, mpc, nocc, old_size1, pid, " +
-                    "rfc, sha, size1, size2, wmc, nom, kappa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE url = '" + Globals.getProjectURL() + "' LIMIT 1), ?, ?, ?, ?, ?, ?, ?);");
+                    "rfc, sha, size1, size2, wmc, nom, kappa, revision_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE url = '" + Globals.getProjectURL() + "' LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?);");
 
             st.setInt(1, jf.getQualityMetrics().getClassesNum());
             st.setDouble(2, jf.getQualityMetrics().getComplexity());
@@ -59,6 +59,7 @@ public class InsertToDB {
             st.setDouble(15, jf.getQualityMetrics().getWMC());
             st.setDouble(16, jf.getQualityMetrics().getNOM());
             st.setDouble(17, jf.getKappaValue());
+            st.setDouble(18, Globals.getRevisionCount());
             st.executeUpdate();
             st.close();
             return true;
