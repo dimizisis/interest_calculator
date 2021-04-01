@@ -36,9 +36,11 @@ public class PrintResults implements CkjmOutputHandler {
 	}
 	
    public void handleClass(String name, ClassMetrics c) {
-		c.setGMOODLowLevel();
-	 	c.setQMOODHighLevel();
-     	this.p.println(name + ";" + c.getCsvOutput());
+		try {
+			c.setGMOODLowLevel();
+			c.setQMOODHighLevel();
+			this.p.println(name + ";" + c.getCsvOutput());
+		} catch (Exception e) {}
    }
 
 	@Override

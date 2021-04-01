@@ -11,6 +11,7 @@ import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import data.Globals;
 import db.DatabaseConnection;
+import db.DeleteFromDB;
 import db.InsertToDB;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
@@ -31,25 +32,26 @@ public class Main {
         Globals.setCurrentSha(Objects.requireNonNull(responseEntities)[0].getSha());
         checkout(git, Objects.requireNonNull(responseEntities)[0].getSha());
         setMetrics(args[1]);
+        Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
 
         for (int i = 1; i < Objects.requireNonNull(responseEntities).length; ++i) {
-            Globals.incrementRevisions();
             Globals.setCurrentSha(responseEntities[i].getSha());
             checkout(git, responseEntities[i].getSha());
-            removeDeletedFiles(responseEntities[i].getDiffEntries());
+            Globals.incrementRevisions();
+            Set<JavaFile> deletedFiles = removeDeletedFiles(responseEntities[i].getDiffEntries());
+//            deletedFiles.forEach(DeleteFromDB::deleteFileFromDatabase);
             Set<JavaFile> newFiles = findNewFiles(responseEntities[i].getDiffEntries());
             Set<JavaFile> modifiedFiles = findModifiedFiles(responseEntities[i].getDiffEntries());
             setMetrics(args[1], newFiles);
             setMetrics(args[1], modifiedFiles);
+            Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
         }
 
-        System.out.println("File count: " + Globals.getJavaFiles().size());
-        for (JavaFile file : Globals.getJavaFiles()) {
-            System.out.println("File: " + file.getPath());
-        }
-
+//        System.out.println("File count: " + Globals.getJavaFiles().size());
+//        for (JavaFile file : Globals.getJavaFiles()) {
+//            System.out.println("File: " + file.getPath());
+//        }
         DatabaseConnection.closeConnection();
-
     }
 
     /**
@@ -57,11 +59,16 @@ public class Main {
      *
      * @param diffEntries the modified java files (new, modified, deleted)
      */
-    private static void removeDeletedFiles(List<DiffEntry> diffEntries) {
+    private static Set<JavaFile> removeDeletedFiles(List<DiffEntry> diffEntries) {
+        Set<JavaFile> deletedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
                 .filter(diffEntry -> diffEntry.getChangeType().equals("DELETE"))
-                .forEach(diffEntry -> Globals.getJavaFiles().removeIf(javaFile -> javaFile.getPath().endsWith(diffEntry.getOldFilePath())));
+                .forEach(diffEntry -> {
+                    deletedFiles.add(new JavaFile(diffEntry.getOldFilePath()));
+                    Globals.getJavaFiles().removeIf(javaFile -> javaFile.getPath().endsWith(diffEntry.getOldFilePath()));
+                });
+        return deletedFiles;
     }
 
     /**
@@ -109,14 +116,15 @@ public class Main {
      * @param clonePath the path we are cloning to
      * @return a git object (will be used for checkouts)
      */
-    private static Git cloneRepository(String gitUrl, String clonePath) throws Exception {
+    private static Git cloneRepository(String gitUrl, String clonePath) {
         try {
             return Git.cloneRepository()
                     .setURI(gitUrl)
                     .setDirectory(new File(clonePath))
                     .call();
         } catch (Exception e) {
-            return Git.open(new File(clonePath));
+            e.printStackTrace();
+            return null;
         }
     }
 
@@ -160,7 +168,6 @@ public class Main {
             JavaFile jf = new JavaFile(filePath);
             registerMetrics(column, jf);
             Globals.addJavaFile(jf);
-            InsertToDB.insertMetricsToDatabase(jf);
         }
     }
 
@@ -176,16 +183,18 @@ public class Main {
                 int resultCode = MetricsCalculator.start(projectPath, jf.getPath().replace("\\", "/"));
                 if (resultCode == -1)
                     continue;
-                String st = MetricsCalculator.printResults();
-                MetricsCalculator.reset();
-                String[] s = st.split("\\r?\\n");
-                String[] column = s[1].split(";");
-                registerMetrics(column, jf);
-                Globals.addJavaFile(jf);
-                InsertToDB.insertMetricsToDatabase(jf);
+                try {
+                    String st = MetricsCalculator.printResults();
+                    MetricsCalculator.reset();
+                    String[] s = st.split("\\r?\\n");
+                    String[] column = s[1].split(";");
+                    registerMetrics(column, jf);
+                    Globals.addJavaFile(jf);
+                } catch (ArrayIndexOutOfBoundsException ingored) {}
             }
             jfs.forEach(JavaFile::calculateInterest);
         } catch (Exception ignored) {
+            ignored.printStackTrace();
         }
     }
 

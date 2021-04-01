@@ -81,6 +81,7 @@ public class MetricsCalculator {
             System.err.println("No classes could be identified! Exiting...");
             return -1;
         }
+
         startCalculations(sourceRoots, filePath);
         calculateAllMetrics(getCurrentProject());
         return 0;
@@ -97,7 +98,6 @@ public class MetricsCalculator {
      * Find the project root
      */
     private static ProjectRoot findProjectRoot() {
-//        System.out.println("Collecting source roots...");
         return new SymbolSolverCollectionStrategy()
                 .collect(Paths.get(getCurrentProject()));
     }

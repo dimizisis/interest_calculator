@@ -2,7 +2,6 @@ package db;
 
 import data.Globals;
 import infrastructure.interest.JavaFile;
-import main.Main;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,8 +13,9 @@ public class InsertToDB {
         try {
             Connection conn = DatabaseConnection.getConnection();
 
-            PreparedStatement st = conn.prepareStatement("INSERT INTO projects (url) VALUES (?);");
+            PreparedStatement st = conn.prepareStatement("INSERT INTO projects (url) VALUES (?) ON CONFLICT (url) DO UPDATE SET url = ?;");
             st.setString(1, Globals.getProjectURL());
+            st.setString(2, Globals.getProjectURL());
             st.executeUpdate();
             st.close();
             return true;
@@ -31,9 +31,16 @@ public class InsertToDB {
 
             Connection conn = DatabaseConnection.getConnection();
 
+//            PreparedStatement st = conn.prepareStatement("INSERT INTO metrics (classes_num, " +
+//                    "complexity, dac, dit, file_path, interest_eu, lcom, mpc, nocc, old_size1, pid, " +
+//                    "rfc, sha, size1, size2, wmc, nom, kappa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE url = '" + Globals.getProjectURL() + "' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)"
+//            + " ON CONFLICT (file_path) DO UPDATE SET classes_num = EXCLUDED.classes_num, " +
+//                    "complexity = EXCLUDED.complexity, dac = EXCLUDED.dac, dit = EXCLUDED.dit, file_path = EXCLUDED.file_path, interest_eu = EXCLUDED.interest_eu, lcom = EXCLUDED.lcom, mpc = EXCLUDED.mpc, nocc = EXCLUDED.nocc, old_size1 = EXCLUDED.old_size1, pid = (SELECT pid FROM projects WHERE url = '" + Globals.getProjectURL() + "' LIMIT 1), " +
+//                    "rfc = EXCLUDED.rfc, size1 = EXCLUDED.size1, size2 = EXCLUDED.size2, wmc = EXCLUDED.wmc, nom = EXCLUDED.nom, kappa = EXCLUDED.kappa;");
+
             PreparedStatement st = conn.prepareStatement("INSERT INTO metrics (classes_num, " +
-                    "complexity, dac, dit, file_path, interest_eu, lcom, mpc, nocc, old_size1, pid," +
-                    "rfc, sha, size1, size2, wmc, nom, kappa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE url = '" + Globals.getProjectURL() + "' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)");
+                    "complexity, dac, dit, file_path, interest_eu, lcom, mpc, nocc, old_size1, pid, " +
+                    "rfc, sha, size1, size2, wmc, nom, kappa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE url = '" + Globals.getProjectURL() + "' LIMIT 1), ?, ?, ?, ?, ?, ?, ?);");
 
             st.setInt(1, jf.getQualityMetrics().getClassesNum());
             st.setDouble(2, jf.getQualityMetrics().getComplexity());

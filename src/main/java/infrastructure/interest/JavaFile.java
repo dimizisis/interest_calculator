@@ -18,7 +18,7 @@ public class JavaFile {
     }
 
     public void calculateInterest() {
-        this.getK().update(this.getQualityMetrics().getOldSIZE1());
+        this.getK().update(Objects.nonNull(this.getQualityMetrics().getOldSIZE1()) ? this.getQualityMetrics().getOldSIZE1() : 0);
         this.getInterest().calculate();
     }
 
@@ -35,7 +35,7 @@ public class JavaFile {
     }
 
     public Double getInterestInEuros() {
-        return this.interest.getInterestInHours();
+        return this.interest.getInterestInEuros();
     }
 
     public TDInterest getInterest() {

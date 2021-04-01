@@ -36,23 +36,25 @@ public class PackageMetrics extends WideMetrics {
 	}
 
 	private void increaseMetrics(ClassMetrics classMetrics) {
-		this.setAna(this.getAna() + classMetrics.getAna());
-		this.setCbo(this.getCbo() + classMetrics.getCbo());
-		this.setMoa(this.getMoa() + classMetrics.getMoa());
-		this.setNop(this.getNop() + classMetrics.getNop());
-		this.setLcom(this.getLcom() + classMetrics.getLcom());
-		this.setNpm(this.getNpm() + classMetrics.getNpm());
-		this.setWmc(this.getWmc() + classMetrics.getWmc());
-		this.setMfa(this.getMfa() + classMetrics.getMfa());
-		if (!Float.isNaN(classMetrics.getDam())) {
-			if (Float.isNaN(getDam()))
-				this.setDam(0.0F);
-			this.setDam(this.getDam() + classMetrics.getDam());
-			this.setClassesCount(this.getClassesCount() + 1);
-		}
-		if ((classMetrics.getAna() == 0.0F) && (classMetrics.getNoc() > 0))
-			this.setNoh((int) ((float) (this.getNoh() + 1.0D)));
-		this.setDsc(this.getDsc() + 1.0F);
+		try {
+			this.setAna(this.getAna() + classMetrics.getAna());
+			this.setCbo(this.getCbo() + classMetrics.getCbo());
+			this.setMoa(this.getMoa() + classMetrics.getMoa());
+			this.setNop(this.getNop() + classMetrics.getNop());
+			this.setLcom(this.getLcom() + classMetrics.getLcom());
+			this.setNpm(this.getNpm() + classMetrics.getNpm());
+			this.setWmc(this.getWmc() + classMetrics.getWmc());
+			this.setMfa(this.getMfa() + classMetrics.getMfa());
+			if (!Float.isNaN(classMetrics.getDam())) {
+				if (Float.isNaN(getDam()))
+					this.setDam(0.0F);
+				this.setDam(this.getDam() + classMetrics.getDam());
+				this.setClassesCount(this.getClassesCount() + 1);
+			}
+			if ((classMetrics.getAna() == 0.0F) && (classMetrics.getNoc() > 0))
+				this.setNoh((int) ((float) (this.getNoh() + 1.0D)));
+			this.setDsc(this.getDsc() + 1.0F);
+		} catch (NullPointerException e) {}
 	}
 
 	private void increaseMetrics(PackageMetrics packageMetrics) {
