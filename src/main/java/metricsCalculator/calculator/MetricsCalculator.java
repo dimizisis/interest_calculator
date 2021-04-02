@@ -142,11 +142,22 @@ public class MetricsCalculator {
      */
     private static void addToClassSet(CompilationUnit cu) {
         try {
-            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> classesToAnalyse.add(c.resolve().getQualifiedName()));
+            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
+                try {
+                    classesToAnalyse.add(c.resolve().getQualifiedName());
+                } catch (Exception ignored) {
+                    System.out.println("error");
+                }
+            });
         } catch (Exception ignored) {
         }
         try {
-            cu.findAll(EnumDeclaration.class).forEach(en -> classesToAnalyse.add(en.resolve().getQualifiedName()));
+            cu.findAll(EnumDeclaration.class).forEach(en -> {
+                try {
+                    classesToAnalyse.add(en.resolve().getQualifiedName());
+                } catch (Exception ignored) {
+                }
+            });
         } catch (Exception ignored) {
         }
     }

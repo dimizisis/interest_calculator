@@ -9,7 +9,7 @@ import java.util.logging.Logger;
 public class DatabaseConnection {
 
     private static String databaseDriver = "org.postgresql.Driver";
-    private static String databaseUrl = "";
+    private static String databaseUrl = "jdbc:postgresql://";
     private static String databaseUsername = "";
     private static String databasePassword = "";
 
