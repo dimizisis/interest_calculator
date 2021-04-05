@@ -453,8 +453,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *                  the class we are referring to
      */
     private void registerCoupling(String className) {
-        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.') + 1) : className.substring(className.lastIndexOf('.'));
-        String simpleMyClassName = this.myFile.contains(".") ? this.myFile.substring(this.myFile.lastIndexOf('.') + 1) : this.myFile.substring(this.myFile.lastIndexOf('.'));
+        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.')+1) : className.substring(className.lastIndexOf('.'));
+        String simpleMyClassName = this.myFile.contains(".") ? this.myFile.substring(this.myFile.lastIndexOf('.')+1) : this.myFile.substring(this.myFile.lastIndexOf('.'));
 
         if (this.compilationUnit.getClassByName(simpleClassName).isPresent() && this.compilationUnit.getClassByName(simpleMyClassName).isPresent()) {
             ClassOrInterfaceDeclaration cl = this.compilationUnit.getClassByName(simpleClassName).get();
@@ -466,6 +466,13 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                 if (cl.isAncestorOf(myCl) && !cl.isInterface())
                     this.efferentCoupledClasses.add(className);
                 this.classMetricsContainer.getMetrics(className).addAfferentCoupling(this.myFile);
+            }
+        } else {
+            if ((withinAnalysisBounds(className))) {
+                if ((!this.myFile.equals(className))) {
+                    this.efferentCoupledClasses.add(className);
+                    this.classMetricsContainer.getMetrics(className).addAfferentCoupling(this.myFile);
+                }
             }
         }
     }
