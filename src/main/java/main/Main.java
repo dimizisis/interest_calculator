@@ -1,6 +1,7 @@
 package main;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,6 +18,7 @@ import infrastructure.newcode.DiffEntry;
 import infrastructure.newcode.PrincipalResponseEntity;
 import metricsCalculator.calculator.MetricsCalculator;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 public class Main {
@@ -24,36 +26,117 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         Globals.setProjectURL(args[0]);
+        Globals.setProjectPath(args[1]);
         System.out.printf("Cloning %s...\n", args[0]);
-        Git git = cloneRepository(args[0], args[1]);
+        cloneRepository();
+        if (Objects.isNull(Globals.getGit()))
+            return;
         InsertToDB.insertProjectToDatabase();
 
-        System.out.println("Receiving file changes for all commits...");
-        PrincipalResponseEntity[] responseEntities = getResponseEntities();
-        Globals.setCurrentSha(Objects.requireNonNull(responseEntities)[0].getSha());
-        checkout(git, Objects.requireNonNull(responseEntities)[0].getSha());
-        System.out.println("Received file changes!");
+        System.out.println("Receiving all commit ids...");
+        List<String> commitIds = getCommitIds(Globals.getProjectURL());
+        if (Objects.isNull(commitIds))
+            return;
+        Globals.setCurrentSha(Objects.requireNonNull(commitIds.get(0)));
+        checkout(commitIds.get(0), 1);
         System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
         setMetrics(args[1]);
         System.out.println("Calculated metrics for all files from first commit!");
         Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
 
-        for (int i = 1; i < Objects.requireNonNull(responseEntities).length; ++i) {
-            Globals.setCurrentSha(responseEntities[i].getSha());
-            checkout(git, responseEntities[i].getSha());
-            Globals.incrementRevisions();
+        for (int i = 1; i < commitIds.size(); ++i) {
+            Globals.setCurrentSha(commitIds.get(i));
+            checkout(Globals.getCurrentSha(), i);
+            Globals.setRevision(i+1);
             System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
-            removeDeletedFiles(responseEntities[i].getDiffEntries());
-            Set<JavaFile> newFiles = findNewFiles(responseEntities[i].getDiffEntries());
-            Set<JavaFile> modifiedFiles = findModifiedFiles(responseEntities[i].getDiffEntries());
-            System.out.println("Analyzing new/modified commit files...");
-            setMetrics(args[1], newFiles);
-            setMetrics(args[1], modifiedFiles);
-            System.out.println("Calculated metrics for all files!");
-            Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+            try {
+                PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(Globals.getProjectURL(), Globals.getCurrentSha());
+                if (Objects.isNull(responseEntities))
+                    continue;
+                List<DiffEntry> diffEntries = responseEntities[0].getDiffEntries();
+                removeDeletedFiles(diffEntries);
+                Set<JavaFile> newFiles = findNewFiles(Objects.requireNonNull(diffEntries));
+                Set<JavaFile> modifiedFiles = findModifiedFiles(Objects.requireNonNull(diffEntries));
+                System.out.println("Analyzing new/modified commit files...");
+                setMetrics(args[1], newFiles);
+                setMetrics(args[1], modifiedFiles);
+                System.out.println("Calculated metrics for all files!");
+                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+            } catch (Exception ignored) {}
         }
         DatabaseConnection.closeConnection();
         System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount());
+    }
+
+    public static void deleteSourceCode(File file) throws IOException {
+        boolean result;
+
+        if (file.isDirectory()) {
+            // If directory is empty, then delete it
+            if (file.list().length == 0) {
+                result = file.delete();
+                if (!result)
+                    System.out.println("Error with the deletion of file");
+            }
+            else {
+                // List all the directory contents
+                String[] files = file.list();
+
+                for (String temp : files) {
+                    // construct the file structure
+                    File fileDelete = new File(file, temp);
+                    // recursive delete
+                    deleteSourceCode(fileDelete);
+                }
+
+                // check the directory again, if empty then delete it
+                if (file.list().length == 0) {
+                    result = file.delete();
+                    if (!result)
+                        System.out.println("Error with the deletion of file");
+                }
+            }
+
+        }
+        else {
+            // if file, then delete it
+            result = file.delete();
+            if (!result)
+                System.out.println("Error with the deletion of file");
+        }
+    }
+
+    /**
+     * Gets all commit ids for a specific git repo.
+     *
+     * @param gitURL the url of git repository
+     */
+    private static List<String> getCommitIds(String gitURL) {
+        HttpResponse<JsonNode> httpResponse = null;
+        Unirest.setTimeouts(0, 0);
+        try {
+            httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/commits-history/shas?url=" + gitURL).asJson();
+        } catch (UnirestException e) {
+            e.printStackTrace();
+        }
+        return Objects.nonNull(httpResponse) ? Arrays.asList(new Gson().fromJson(httpResponse.getBody().toString(), String[].class)) : null;
+    }
+
+    /**
+     * Gets all commit ids for a specific git repo.
+     *
+     * @param sha the commit id
+     */
+    private static PrincipalResponseEntity[] getResponseEntitiesAtCommit(String gitURL, String sha) {
+        HttpResponse<JsonNode> httpResponse;
+        Unirest.setTimeouts(0, 0);
+        try {
+            httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/project-commit-changes?url=" + gitURL + "&sha=" + sha).asJson();
+            return new Gson().fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
+        } catch (UnirestException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**
@@ -114,43 +197,32 @@ public class Main {
     /**
      * Clones a repo to a specified path.
      *
-     * @param gitUrl    the repo's URL
-     * @param clonePath the path we are cloning to
      * @return a git object (will be used for checkouts)
      */
-    private static Git cloneRepository(String gitUrl, String clonePath) {
+    private static void cloneRepository() {
         try {
-
-            return Git.cloneRepository()
-                    .setURI(gitUrl)
-                    .setDirectory(new File(clonePath))
-                    .call();
+            Globals.setGit(Git.cloneRepository()
+                    .setURI(Globals.getProjectURL())
+                    .setDirectory(new File(Globals.getProjectPath()))
+                    .call());
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
         }
     }
 
     /**
      * Checkouts to specified commitId (SHA)
      *
-     * @param git      a git object (used to clone the repo)
      * @param commitId the SHA we are checking out to
      */
-    private static void checkout(Git git, String commitId) throws GitAPIException {
-        git.checkout().setName(commitId).call();
-    }
-
-    private static PrincipalResponseEntity[] getResponseEntities() {
-        HttpResponse<JsonNode> httpResponse;
-        Unirest.setTimeouts(0, 0);
+    private static void checkout(String commitId, int versionNum) throws GitAPIException, IOException {
         try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989/api/sdk4ed/internal/longest-path/with-commit-changes?url=" + Globals.getProjectURL()).asJson();
-            return new Gson().fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
-        } catch (UnirestException e) {
-            e.printStackTrace();
+            Globals.getGit().checkout().setCreateBranch(true).setName("version" + versionNum).setStartPoint(commitId).call();
+        } catch (CheckoutConflictException e) {
+            deleteSourceCode(new File(Globals.getProjectPath()));
+            cloneRepository();
+            Globals.getGit().checkout().setCreateBranch(true).setName("version" + versionNum).setStartPoint(commitId).call();
         }
-        return null;
     }
 
     /**

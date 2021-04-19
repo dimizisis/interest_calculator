@@ -9,9 +9,9 @@ import java.util.logging.Logger;
 public class DatabaseConnection {
 
     private static String databaseDriver = "org.postgresql.Driver";
-    private static String databaseUrl = "jdbc:postgresql://";
-    private static String databaseUsername = "";
-    private static String databasePassword = "";
+    private static String databaseUrl = "jdbc:postgresql://195.251.210.147:5544/interest_metrics";
+    private static String databaseUsername = "sonar";
+    private static String databasePassword = "d74c6ce75d36edf1c36fe65f9cfd9d89";
 
     private static Connection connection = null;
 
