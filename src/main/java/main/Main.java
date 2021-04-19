@@ -46,7 +46,7 @@ public class Main {
 
         for (int i = 1; i < commitIds.size(); ++i) {
             Globals.setCurrentSha(commitIds.get(i));
-            checkout(Globals.getCurrentSha(), i);
+            checkout(Globals.getCurrentSha(), i+1);
             Globals.setRevision(i+1);
             System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
             try {
