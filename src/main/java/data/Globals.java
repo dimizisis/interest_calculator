@@ -15,6 +15,8 @@ public final class Globals {
     private static String projectURL;
     private static String projectPath;
     private static Git git;
+    private static StringBuilder output;
+    private static String[] outputHeaders;
 
     static {
         javaFiles = ConcurrentHashMap.newKeySet();
@@ -22,6 +24,27 @@ public final class Globals {
         currentSha = "";
         projectURL = "";
         projectPath = "";
+        outputHeaders = new String[]{
+                "CommitId\t",
+                "RevisionCount\t",
+                "InvolvedFile\t",
+                "ClassesNum\t",
+                "Complexity\t",
+                "DAC\t",
+                "DIT\t",
+                "LCOM\t",
+                "MPC\t",
+                "NOCC\t",
+                "OldLOC\t",
+                "RFC\t",
+                "LOC\t",
+                "SIZE2\t",
+                "WMC\t",
+                "NOM\t",
+                "InterestEuros\t",
+                "Kappa\n"
+        };
+        output = new StringBuilder();
     }
 
     public static Set<JavaFile> getJavaFiles() {
@@ -33,6 +56,28 @@ public final class Globals {
             getJavaFiles().remove(jf);
             getJavaFiles().add(jf);
         }
+    }
+
+    public synchronized static void append(JavaFile javaFile) {
+        String s = getCurrentSha() + "\t"
+                + getRevisionCount() + "\t"
+                + javaFile.getPath() + "\t"
+                + javaFile.getQualityMetrics().getClassesNum() + "\t"
+                + javaFile.getQualityMetrics().getComplexity() + "\t"
+                + javaFile.getQualityMetrics().getDAC() + "\t"
+                + javaFile.getQualityMetrics().getDIT() + "\t"
+                + javaFile.getQualityMetrics().getLCOM() + "\t"
+                + javaFile.getQualityMetrics().getMPC() + "\t"
+                + javaFile.getQualityMetrics().getNOCC() + "\t"
+                + javaFile.getQualityMetrics().getOldSIZE1() + "\t"
+                + javaFile.getQualityMetrics().getRFC() + "\t"
+                + javaFile.getQualityMetrics().getSIZE1() + "\t"
+                + javaFile.getQualityMetrics().getSIZE2() + "\t"
+                + javaFile.getQualityMetrics().getWMC() + "\t"
+                + javaFile.getQualityMetrics().getNOM() + "\t"
+                + javaFile.getInterestInEuros() + "\t"
+                + javaFile.getKappaValue() + "\n";
+        output.append(s);
     }
 
     public static String getProjectURL() {
@@ -78,4 +123,11 @@ public final class Globals {
         git = newGit;
     }
 
+    public static StringBuilder getOutput() {
+        return output;
+    }
+
+    public static String[] getOutputHeaders() {
+        return outputHeaders;
+    }
 }

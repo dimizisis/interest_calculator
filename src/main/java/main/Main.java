@@ -1,6 +1,7 @@
 package main;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +32,8 @@ public class Main {
         cloneRepository();
         if (Objects.isNull(Globals.getGit()))
             return;
-        InsertToDB.insertProjectToDatabase();
+        if (args.length == 2)
+            InsertToDB.insertProjectToDatabase();
 
         System.out.println("Receiving all commit ids...");
         List<String> commitIds = getCommitIds(Globals.getProjectURL());
@@ -40,9 +42,12 @@ public class Main {
         Globals.setCurrentSha(Objects.requireNonNull(commitIds.get(0)));
         checkout(commitIds.get(0), 1);
         System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
-        setMetrics(args[1]);
+        setMetrics(Globals.getProjectPath());
         System.out.println("Calculated metrics for all files from first commit!");
-        Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+        if (args.length == 2)
+            Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+        else
+            Globals.getJavaFiles().forEach(Globals::append);
 
         for (int i = 1; i < commitIds.size(); ++i) {
             Globals.setCurrentSha(commitIds.get(i));
@@ -58,17 +63,35 @@ public class Main {
                 Set<JavaFile> newFiles = findNewFiles(Objects.requireNonNull(diffEntries));
                 Set<JavaFile> modifiedFiles = findModifiedFiles(Objects.requireNonNull(diffEntries));
                 System.out.println("Analyzing new/modified commit files...");
-                setMetrics(args[1], newFiles);
-                setMetrics(args[1], modifiedFiles);
+                setMetrics(Globals.getProjectPath(), newFiles);
+                setMetrics(Globals.getProjectPath(), modifiedFiles);
                 System.out.println("Calculated metrics for all files!");
-                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+                if (args.length == 2)
+                    Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+                else
+                    Globals.getJavaFiles().forEach(Globals::append);
             } catch (Exception ignored) {}
         }
-        DatabaseConnection.closeConnection();
+        if (args.length == 2)
+            DatabaseConnection.closeConnection();
+        else
+            writeCSV(args[2]);
         System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount());
     }
 
-    public static void deleteSourceCode(File file) throws IOException {
+    private static void writeCSV(String path) throws IOException {
+
+        FileWriter csvWriter = new FileWriter(path);
+
+        for (String header : Globals.getOutputHeaders())
+            csvWriter.append(header);
+        csvWriter.append(Globals.getOutput());
+
+        csvWriter.flush();
+        csvWriter.close();
+    }
+
+    public static void deleteSourceCode(File file) {
         boolean result;
 
         if (file.isDirectory()) {
@@ -96,7 +119,6 @@ public class Main {
                         System.out.println("Error with the deletion of file");
                 }
             }
-
         }
         else {
             // if file, then delete it
@@ -215,7 +237,7 @@ public class Main {
      *
      * @param commitId the SHA we are checking out to
      */
-    private static void checkout(String commitId, int versionNum) throws GitAPIException, IOException {
+    private static void checkout(String commitId, int versionNum) throws GitAPIException {
         try {
             Globals.getGit().checkout().setCreateBranch(true).setName("version" + versionNum).setStartPoint(commitId).call();
         } catch (CheckoutConflictException e) {
