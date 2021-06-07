@@ -596,6 +596,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         this.classMetrics.setSize2(calculateSize2(javaClass));
         this.classMetrics.setSize1(calculateSize1(javaClass));
         this.classMetrics.setWmcCc(calculateWmcCc(javaClass));
+        this.classMetrics.setCbo(this.efferentCoupledClasses.size());
 
         this.classMetrics.setRfc(this.responseSet.size() + this.classMetrics.getWmc()); //WMC as CIS angor
         this.classMetrics.setMpc(this.methodsCalled.size());    //angor
@@ -618,5 +619,6 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         this.classMetrics.setRfc(this.responseSet.size() + this.classMetrics.getWmc()); //WMC as CIS angor
         this.classMetrics.setMpc(this.methodsCalled.size());    //angor
         this.classMetrics.setLcom(calculateLCOM());
+        this.classMetrics.setCbo(this.efferentCoupledClasses.size());
     }
 }

@@ -28,6 +28,9 @@ public class Main {
 
         Globals.setProjectURL(args[0]);
         Globals.setProjectPath(args[1]);
+        try {
+            deleteSourceCode(new File(Globals.getProjectPath()));
+        } catch (Exception e) {}
         System.out.printf("Cloning %s...\n", args[0]);
         cloneRepository();
         if (Objects.isNull(Globals.getGit()))
@@ -68,8 +71,10 @@ public class Main {
                 System.out.println("Calculated metrics for all files!");
                 if (args.length == 2)
                     Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
-                else
+                else {
                     Globals.getJavaFiles().forEach(Globals::append);
+                    Globals.compound();
+                }
             } catch (Exception ignored) {}
         }
         if (args.length == 2)
@@ -218,8 +223,6 @@ public class Main {
 
     /**
      * Clones a repo to a specified path.
-     *
-     * @return a git object (will be used for checkouts)
      */
     private static void cloneRepository() {
         try {
@@ -312,6 +315,7 @@ public class Main {
         jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
         jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[10]));
         jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[11]));
-        jf.getQualityMetrics().setClassesNum(Integer.parseInt(calcEntries[12]));
+        jf.getQualityMetrics().setCBO(Float.parseFloat(calcEntries[12]));
+        jf.getQualityMetrics().setClassesNum(Integer.parseInt(calcEntries[13]));
     }
 }

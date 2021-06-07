@@ -16,6 +16,7 @@ public final class QualityMetrics {
     private Integer MPC;
     private Integer DAC;
     private Integer oldSIZE1;
+    private Float CBO;
     private Integer SIZE1;
     private Integer SIZE2;
 
@@ -120,6 +121,10 @@ public final class QualityMetrics {
         return oldSIZE1;
     }
 
+    public Float getCBO() {
+        return CBO;
+    }
+
     public String getSha() {
         return this.sha;
     }
@@ -174,6 +179,10 @@ public final class QualityMetrics {
 
     public void setSIZE2(Integer SIZE2) {
         this.SIZE2 = SIZE2;
+    }
+
+    public void setCBO(Float CBO) {
+        this.CBO = CBO;
     }
 
     public void setSha(String sha) {

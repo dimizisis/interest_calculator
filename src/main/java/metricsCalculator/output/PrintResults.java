@@ -6,7 +6,6 @@ import metricsCalculator.metrics.PackageMetrics;
 import metricsCalculator.metrics.ProjectMetrics;
 
 import java.io.*;
-import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -32,7 +31,7 @@ public class PrintResults implements CkjmOutputHandler {
 	public void printHeader() {
 		this.p.print("Name;");
 		this.p.print("WMC;DIT;NOCC;RFC;LCOM;WMC;");						// Chidamber & Kemerer metrics
-		this.p.print("NOM;MPC;DAC;SIZE1;SIZE2;ClassesNum\n");	// Li & Henry metrics
+		this.p.print("NOM;MPC;DAC;SIZE1;SIZE2;CBO;ClassesNum\n");	// Li & Henry metrics
 	}
 	
    public void handleClass(String name, ClassMetrics c) {
