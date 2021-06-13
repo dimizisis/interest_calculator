@@ -102,9 +102,7 @@ public class Main {
         if (file.isDirectory()) {
             // If directory is empty, then delete it
             if (file.list().length == 0) {
-                result = file.delete();
-                if (!result)
-                    System.out.println("Error with the deletion of file");
+                file.delete();
             }
             else {
                 // List all the directory contents
@@ -119,17 +117,13 @@ public class Main {
 
                 // check the directory again, if empty then delete it
                 if (file.list().length == 0) {
-                    result = file.delete();
-                    if (!result)
-                        System.out.println("Error with the deletion of file");
+                    file.delete();
                 }
             }
         }
         else {
             // if file, then delete it
-            result = file.delete();
-            if (!result)
-                System.out.println("Error with the deletion of file");
+            file.delete();
         }
     }
 
