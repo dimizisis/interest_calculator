@@ -160,9 +160,10 @@ public class JavaFile {
          */
         private AbstractQueue<Similarity> calculateSimilarities() {
             AbstractQueue<Similarity> similarityOfFiles = new PriorityQueue<>(Collections.reverseOrder());
-            for (JavaFile jf : Globals.getJavaFiles())
-                if (!Objects.equals(JavaFile.this, jf))
-                    similarityOfFiles.add(new Similarity(JavaFile.this, jf, 1 - calculateSimilarityIndex(jf)));
+            Globals.getJavaFiles()
+                    .stream()
+                    .filter(jf -> !Objects.equals(JavaFile.this, jf))
+                    .forEach(jf -> similarityOfFiles.add(new Similarity(JavaFile.this, jf, 1 - calculateSimilarityIndex(jf))));
             return similarityOfFiles;
         }
 

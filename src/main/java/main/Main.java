@@ -30,7 +30,7 @@ public class Main {
         Globals.setProjectPath(args[1]);
         try {
             deleteSourceCode(new File(Globals.getProjectPath()));
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
         System.out.printf("Cloning %s...\n", args[0]);
         cloneRepository();
         if (Objects.isNull(Globals.getGit()))
@@ -96,33 +96,29 @@ public class Main {
         csvWriter.close();
     }
 
-    public static void deleteSourceCode(File file) {
-        boolean result;
-
+    public static void deleteSourceCode(File file) throws NullPointerException {
         if (file.isDirectory()) {
-            // If directory is empty, then delete it
-            if (file.list().length == 0) {
+            /* If directory is empty, then delete it */
+            if (Objects.requireNonNull(file.list()).length == 0)
                 file.delete();
-            }
             else {
-                // List all the directory contents
+                /* List all the directory contents */
                 String[] files = file.list();
 
                 for (String temp : files) {
-                    // construct the file structure
+                    /* Construct the file structure */
                     File fileDelete = new File(file, temp);
-                    // recursive delete
+                    /* Recursive delete */
                     deleteSourceCode(fileDelete);
                 }
 
-                // check the directory again, if empty then delete it
-                if (file.list().length == 0) {
+                /* Check the directory again, if empty then delete it */
+                if (Objects.requireNonNull(file.list()).length == 0)
                     file.delete();
-                }
             }
         }
         else {
-            // if file, then delete it
+            /* If file, then delete it */
             file.delete();
         }
     }
