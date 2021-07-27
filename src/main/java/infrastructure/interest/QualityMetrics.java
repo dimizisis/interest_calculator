@@ -13,12 +13,30 @@ public final class QualityMetrics {
     private Double LCOM;
     private Double WMC;
     private Double NOM;
-    private Integer MPC;
+    private Double MPC;
     private Integer DAC;
     private Integer oldSIZE1;
-    private Float CBO;
+    private Double CBO;
     private Integer SIZE1;
     private Integer SIZE2;
+
+    public QualityMetrics(String sha, Integer classesNum, Double complexity, Integer DIT, Integer NOCC, Double RFC, Double LCOM, Double WMC, Double NOM, Double MPC, Integer DAC, Integer oldSIZE1, Double CBO, Integer SIZE1, Integer SIZE2) {
+        this.sha = sha;
+        this.classesNum = classesNum;
+        this.complexity = complexity;
+        this.DIT = DIT;
+        this.NOCC = NOCC;
+        this.RFC = RFC;
+        this.LCOM = LCOM;
+        this.WMC = WMC;
+        this.NOM = NOM;
+        this.MPC = MPC;
+        this.DAC = DAC;
+        this.oldSIZE1 = oldSIZE1;
+        this.CBO = CBO;
+        this.SIZE1 = SIZE1;
+        this.SIZE2 = SIZE2;
+    }
 
     public QualityMetrics() {
         this.classesNum = 0;
@@ -29,7 +47,7 @@ public final class QualityMetrics {
         this.LCOM = 0.0;
         this.WMC = 0.0;
         this.NOM = 0.0;
-        this.MPC = 0;
+        this.MPC = 0.0;
         this.DAC = 0;
         this.SIZE1 = 0;
         this.SIZE2 = 0;
@@ -57,7 +75,7 @@ public final class QualityMetrics {
             NOM = 1.0;
 
         if (MPC <= 0)
-            MPC = 1;
+            MPC = 1.0;
 
         if (DAC <= 0)
             DAC = 1;
@@ -101,7 +119,7 @@ public final class QualityMetrics {
         return NOM;
     }
 
-    public Integer getMPC() {
+    public Double getMPC() {
         return MPC;
     }
 
@@ -121,7 +139,7 @@ public final class QualityMetrics {
         return oldSIZE1;
     }
 
-    public Float getCBO() {
+    public Double getCBO() {
         return CBO;
     }
 
@@ -161,7 +179,7 @@ public final class QualityMetrics {
         this.NOM = NOM;
     }
 
-    public void setMPC(Integer MPC) {
+    public void setMPC(Double MPC) {
         this.MPC = MPC;
     }
 
@@ -181,7 +199,7 @@ public final class QualityMetrics {
         this.SIZE2 = SIZE2;
     }
 
-    public void setCBO(Float CBO) {
+    public void setCBO(Double CBO) {
         this.CBO = CBO;
     }
 

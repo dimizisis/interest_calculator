@@ -17,6 +17,13 @@ public class JavaFile {
         this.setK(new Kappa());
     }
 
+    public JavaFile(String path, QualityMetrics qualityMetrics, Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC, Double kappa) {
+        this.path = path;
+        this.qualityMetrics = qualityMetrics;
+        this.interest = new TDInterest(interestInEuros, interestInHours, interestInAvgLOC, avgInterestPerLOC, sumInterestPerLOC);
+        this.setK(new Kappa(kappa));
+    }
+
     public void calculateInterest() {
         this.getK().update(this.getQualityMetrics().getOldSIZE1());
         this.getInterest().calculate();
@@ -36,6 +43,22 @@ public class JavaFile {
 
     public Double getInterestInEuros() {
         return this.getInterest().getInterestInEuros();
+    }
+
+    public Double getInterestInHours() {
+        return this.getInterest().getInterestInHours();
+    }
+
+    public Double getInterestInAvgLoc() {
+        return this.getInterest().getInterestInAvgLOC();
+    }
+
+    public Double getSumInterestPerLoc() {
+        return this.getInterest().getSumInterestPerLOC();
+    }
+
+    public Double getAvgInterestPerLoc() {
+        return this.getInterest().getAvgInterestPerLOC();
     }
 
     public TDInterest getInterest() {
@@ -82,6 +105,14 @@ public class JavaFile {
             this.interestInAvgLOC = 0.0;
             this.avgInterestPerLOC = 0.0;
             this.sumInterestPerLOC = 0.0;
+        }
+
+        public TDInterest(Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC) {
+            this.interestInEuros = interestInEuros;
+            this.interestInHours = interestInHours;
+            this.interestInAvgLOC = interestInAvgLOC;
+            this.avgInterestPerLOC = avgInterestPerLOC;
+            this.sumInterestPerLOC = sumInterestPerLOC;
         }
 
         /**
@@ -247,8 +278,8 @@ public class JavaFile {
             optimalMetrics.setMPC(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getMPC())
-                    .min(Integer::compare)
-                    .orElse(0));
+                    .min(Double::compare)
+                    .orElse(0.0));
             optimalMetrics.setDAC(topFiveNeighbors
                     .stream()
                     .map(n -> n.getQualityMetrics().getDAC())
@@ -314,6 +345,10 @@ public class JavaFile {
 
         public Kappa() {
             this.setValue(0.0);
+        }
+
+        public Kappa(Double value) {
+            this.setValue(value);
         }
 
         public void update(Integer oldLOC) {

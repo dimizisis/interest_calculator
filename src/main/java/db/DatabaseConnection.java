@@ -9,9 +9,9 @@ import java.util.logging.Logger;
 public class DatabaseConnection {
 
     private static String databaseDriver = "org.postgresql.Driver";
-    private static String databaseUrl = "jdbc:postgresql://195.251.210.147:5544/interest_metrics";
-    private static String databaseUsername = "sonar";
-    private static String databasePassword = "d74c6ce75d36edf1c36fe65f9cfd9d89";
+    private static String databaseUrl = "";
+    private static String databaseUsername = "";
+    private static String databasePassword = "";
 
     private static Connection connection = null;
 
@@ -29,7 +29,7 @@ public class DatabaseConnection {
         try {
             Class.forName(databaseDriver);
             connection = DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword);
-//            connection.setAutoCommit(false);
+            connection.setAutoCommit(false);
         } catch (ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
@@ -37,9 +37,13 @@ public class DatabaseConnection {
         return connection;
     }
 
-    public static void closeConnection() {
+    public static void closeConnection(boolean success) {
         if (connection != null) {
             try {
+                if (success)
+                    connection.commit();
+                else
+                    connection.rollback();
                 connection.close();
             } catch (SQLException e) {
                 Logger logger = Logger.getAnonymousLogger();

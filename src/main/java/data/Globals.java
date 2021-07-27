@@ -13,6 +13,8 @@ public final class Globals {
     private static final AtomicInteger revisions;
     private static String currentSha;
     private static String projectURL;
+    private static String projectOwner;
+    private static String projectRepo;
     private static String projectPath;
     private static Git git;
     private static StringBuilder output;
@@ -23,6 +25,8 @@ public final class Globals {
         revisions = new AtomicInteger(1);
         currentSha = "";
         projectURL = "";
+        projectOwner = "";
+        projectRepo = "";
         projectPath = "";
         outputHeaders = new String[]{
                 "CommitId\t",
@@ -122,6 +126,17 @@ public final class Globals {
         output.append(getCurrentSha()).append("\t").append(getRevisionCount()).append("\t").append("Compound\t").append(totalClassesNum).append("\t").append(avgComplexity / filesCount).append("\t").append(totalDAC).append("\t").append(maxDIT).append("\t").append(avgLCOM / filesCount).append("\t").append(avgMPC / filesCount).append("\t").append(avgNOCC / filesCount).append("\t").append(avgRFC / filesCount).append("\t").append(sumLOC).append("\t").append(sumSize2).append("\t").append(sumWMC).append("\t").append(sumNOM).append("\t").append(avgCbo / filesCount).append("\t").append(sumInterest).append("\t").append("-").append("\n");
     }
 
+    private static String preprocessURL() {
+        String newURL = projectURL;
+        if (newURL.endsWith(".git/"))
+            newURL = newURL.replace(".git/", "");
+        if (newURL.endsWith(".git"))
+            newURL = newURL.replace(".git", "");
+        if (newURL.endsWith("/"))
+            newURL = newURL.substring(0, newURL.length() - 1);
+        return newURL;
+    }
+
     public static String getProjectURL() {
         return projectURL;
     }
@@ -142,7 +157,7 @@ public final class Globals {
         return revisions;
     }
 
-    public static void setRevision(Integer revision) {
+    public static void setRevisionCount(Integer revision) {
         revisions.set(revision);
     }
 
@@ -171,5 +186,25 @@ public final class Globals {
 
     public static String[] getOutputHeaders() {
         return outputHeaders;
+    }
+
+    public static String getProjectOwner() {
+        return projectOwner;
+    }
+
+    public static void setProjectOwner() {
+        String newURL = preprocessURL();
+        String[] urlSplit = newURL.split("/");
+        projectOwner = urlSplit[urlSplit.length - 2].replaceAll(".*@.*:", "");
+    }
+
+    public static String getProjectRepo() {
+        return projectRepo;
+    }
+
+    public static void setProjectRepo() {
+        String newURL = preprocessURL();
+        String[] urlSplit = newURL.split("/");
+        projectRepo = urlSplit[urlSplit.length - 1];
     }
 }
