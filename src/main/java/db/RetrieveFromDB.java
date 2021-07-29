@@ -5,8 +5,7 @@ import infrastructure.interest.JavaFile;
 import infrastructure.interest.QualityMetrics;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static data.Globals.*;
 
@@ -64,18 +63,51 @@ public class RetrieveFromDB {
         return 0;
     }
 
+    public static String getFilePathById(Integer fid) {
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement st = conn.prepareStatement("SELECT file_path FROM files WHERE fid = ?");
+            st.setInt(1, fid);
+            ResultSet resultSet = st.executeQuery();
+            String filePath = "";
+            while (resultSet.next())
+                filePath = resultSet.getString("file_path");
+            return filePath;
+        } catch (SQLException e) {
+            System.out.println(e);
+        }
+        return null;
+    }
+
+    public static Set<String> getClassNamesByFileId(Integer fid) {
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement st = conn.prepareStatement("SELECT class_names FROM files WHERE fid = ?");
+            st.setInt(1, fid);
+            ResultSet resultSet = st.executeQuery();
+            Array classesArr = null;
+            while (resultSet.next())
+                classesArr = resultSet.getArray("class_names");
+            return Set.of((String[]) (classesArr != null ? classesArr.getArray() : new HashSet<>()));
+        } catch (SQLException e) {
+            System.out.println(e);
+        }
+        return null;
+    }
+
     public static void retrieveJavaFiles() {
         String owner = Globals.getProjectOwner();
         String repoName = getProjectRepo();
         try {
             Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement st = conn.prepareStatement("SELECT sha, classes_num, complexity, dac, dit, file_path, interest_eu, interest_in_hours, avg_interest_per_loc, interest_in_avg_loc, sum_interest_per_loc, lcom, mpc, nocc, old_size1, rfc, sha, size1, size2, wmc, nom, kappa, cbo FROM metrics WHERE pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?)");
+            PreparedStatement st = conn.prepareStatement("SELECT sha, classes_num, complexity, dac, dit, fid, interest_eu, interest_in_hours, avg_interest_per_loc, interest_in_avg_loc, sum_interest_per_loc, lcom, mpc, nocc, old_size1, rfc, sha, size1, size2, wmc, nom, kappa, cbo FROM metrics WHERE pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?)");
             st.setString(1, owner);
             st.setString(2, repoName);
             ResultSet resultSet = st.executeQuery();
             while (resultSet.next()) {
                 String sha = resultSet.getString("sha");
-                String filePath = resultSet.getString("file_path");
+                Integer fid = resultSet.getInt("fid");
+                String filePath = getFilePathById(resultSet.getInt("fid"));
                 Integer classesNum = resultSet.getInt("classes_num");
                 Double complexity = resultSet.getDouble("complexity");
                 Integer dac = resultSet.getInt("dac");
@@ -96,7 +128,8 @@ public class RetrieveFromDB {
                 Double nom = resultSet.getDouble("nom");
                 Double cbo = resultSet.getDouble("cbo");
                 Double kappa = resultSet.getDouble("kappa");
-                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(sha, classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, oldSize1, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa));
+                Set<String> classes = getClassNamesByFileId(fid);
+                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(sha, classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, oldSize1, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa, classes));
             }
         } catch (SQLException e) {
             System.out.println(e);

@@ -1,6 +1,7 @@
 package metricsCalculator.containers;
 
 import metricsCalculator.calculator.MetricsCalculator;
+import metricsCalculator.metrics.ClassIdentity;
 import metricsCalculator.metrics.ClassMetrics;
 import metricsCalculator.metrics.PackageMetrics;
 
@@ -9,7 +10,7 @@ import java.util.Map;
 
 public class PackageMetricsContainer {
 	private final Map<String, PackageMetrics> packageToMetric;
-	private final Map<String, Map<String, ClassMetrics>> packageClasses;
+	private final Map<String, Map<ClassIdentity, ClassMetrics>> packageClasses;
 	private final Map<String, Map<String, PackageMetrics>> packageSubpackages;
 
 	public PackageMetricsContainer() {
@@ -33,7 +34,7 @@ public class PackageMetricsContainer {
 				|| (this.packageToMetric.containsKey(packageName));
 	}
 
-	public Map<String, ClassMetrics> getPackageClasses(String packageName) {
+	public Map<ClassIdentity, ClassMetrics> getPackageClasses(String packageName) {
 		return this.packageClasses.computeIfAbsent(packageName, k -> new HashMap<>());
 	}
 
@@ -43,10 +44,10 @@ public class PackageMetricsContainer {
 				.computeIfAbsent(packageName, k -> new HashMap<>());
 	}
 
-	public void addClassToPackage(String packageName, String javaClass,
+	public void addClassToPackage(String packageName, String file, String javaClass,
 			ClassMetrics javaMetrics) {
-		Map<String, ClassMetrics> packageClasses = getPackageClasses(packageName);
-		packageClasses.put(javaClass, javaMetrics);
+		Map<ClassIdentity, ClassMetrics> packageClasses = getPackageClasses(packageName);
+		packageClasses.put(new ClassIdentity(javaClass, file), javaMetrics);
 	}
 
 	public void addPackage(String packageName) {

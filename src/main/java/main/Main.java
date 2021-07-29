@@ -43,7 +43,8 @@ public class Main {
         int start = 0;
         boolean existsInDb = false;
         try {
-            if (existsInDb = RetrieveFromDB.ProjectExistsInDatabase()) {
+            existsInDb = RetrieveFromDB.ProjectExistsInDatabase();
+            if (existsInDb) {
                 List<String> existingCommitIds = getExistingCommitIds();
                 diffCommitIds = findDifferenceInCommitIds(commitIds, existingCommitIds);
                 if (!diffCommitIds.isEmpty()) {
@@ -69,6 +70,7 @@ public class Main {
             checkout(commitIds.get(0), Globals.getRevisionCount());
             System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
             setMetrics(Globals.getProjectPath());
+            System.out.println("Calculated metrics for all files from first commit!");
             insertFirstData(args);
             Globals.setRevisionCount(Globals.getRevisionCount()+1);
         } else {
@@ -89,7 +91,7 @@ public class Main {
                     setMetrics(responseEntities[0].getDiffEntries());
                 }
                 System.out.println("Calculated metrics for all files!");
-                insertFiles(args);
+                insertData(args);
             } catch (Exception ignored) {}
             Globals.setRevisionCount(Globals.getRevisionCount()+1);
         }
@@ -106,14 +108,16 @@ public class Main {
      * @param args the string array containing the arguments that the user provided
      */
     private static void insertFirstData(String[] args) throws SQLException {
-        if (args.length == 2)
+        if (args.length == 2) {
             InsertToDB.insertProjectToDatabase();
-        System.out.println("Calculated metrics for all files from first commit!");
-        if (args.length == 2)
+            DatabaseConnection.getConnection().commit();
+
+            Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
             Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+            DatabaseConnection.getConnection().commit();
+        }
         else
             Globals.getJavaFiles().forEach(Globals::append);
-        DatabaseConnection.getConnection().commit();
     }
 
     /**
@@ -121,8 +125,9 @@ public class Main {
      *
      * @param args the string array containing the arguments that the user provided
      */
-    private static void insertFiles(String[] args) throws SQLException {
+    private static void insertData(String[] args) throws SQLException {
         if (args.length == 2) {
+            Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
             Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
             DatabaseConnection.getConnection().commit();
         }
@@ -340,11 +345,30 @@ public class Main {
         String[] s = st.split("\\r?\\n");
         for (int i = 1; i < s.length; ++i) {
             String[] column = s[i].split(";");
-            String filePath = column[0] + ".java";
-            JavaFile jf = new JavaFile(filePath);
-            registerMetrics(column, jf);
-            Globals.addJavaFile(jf);
+
+            String filePath = column[0];
+            String className = column[1];
+            JavaFile jf;
+            if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath))) {
+                jf = new JavaFile(filePath);
+                jf.addClassName(className);
+                registerMetrics(column, jf);
+                Globals.addJavaFile(jf);
+            } else {
+                jf = getAlreadyDefinedFile(filePath);
+                if (Objects.nonNull(jf)) {
+                    jf.addClassName(className);
+                    appendMetrics(column, jf);
+                }
+            }
         }
+    }
+
+    private static JavaFile getAlreadyDefinedFile(String filePath) {
+        for (JavaFile jf : Globals.getJavaFiles())
+            if (jf.getPath().equals(filePath))
+                return jf;
+        return null;
     }
 
     /**
@@ -364,7 +388,15 @@ public class Main {
                     MetricsCalculator.reset();
                     String[] s = st.split("\\r?\\n");
                     String[] column = s[1].split(";");
-                    registerMetrics(column, jf);
+                    if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(jf.getPath().replace("\\", "/")))) {
+                        if (!jf.containsClass(column[1]))
+                            jf.addClassName(column[1]);
+                        registerMetrics(column, jf);
+                    } else {
+                        if (!jf.containsClass(column[1]))
+                            jf.addClassName(column[1]);
+                        appendMetrics(column, jf);
+                    }
                     Globals.addJavaFile(jf);
                 } catch (ArrayIndexOutOfBoundsException ignored) {}
             }
@@ -379,19 +411,44 @@ public class Main {
      * @param jf          the java file we are registering metrics to
      */
     private static void registerMetrics(String[] calcEntries, JavaFile jf) {
-        jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[1]));
-        jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[2]));
-        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[3]));
-        jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[4]));
-        jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[5]));
-        jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[6]));
-        jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[7]));
-        jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[8]));
-        jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[9]));
+        jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
+        jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
+        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
+        jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
+        jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
+        jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
+        jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[8]));
+        jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[9]));
+        jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[10]));
         jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
-        jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[10]));
-        jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[11]));
-        jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[12]));
-        jf.getQualityMetrics().setClassesNum(Integer.parseInt(calcEntries[13]));
+        jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
+        jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
+        jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
+        jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
+    }
+
+    /**
+     * Register Metrics to specified java file
+     *
+     * @param calcEntries entries taken from MetricsCalculator's results
+     * @param jf          the java file we are registering metrics to
+     */
+    private static void appendMetrics(String[] calcEntries, JavaFile jf) {
+        jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
+        jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
+        jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
+        jf.getQualityMetrics().setRFC(jf.getQualityMetrics().getRFC() + Double.parseDouble(calcEntries[5]));
+        if (Double.parseDouble(calcEntries[6]) > 0)
+            jf.getQualityMetrics().setLCOM(jf.getQualityMetrics().getLCOM() + Double.parseDouble(calcEntries[6]));
+        if (Double.parseDouble(calcEntries[7]) > 0)
+            jf.getQualityMetrics().setComplexity(jf.getQualityMetrics().getComplexity() + Double.parseDouble(calcEntries[7]));
+        jf.getQualityMetrics().setNOM(jf.getQualityMetrics().getNOM() + Double.parseDouble(calcEntries[8]));
+        jf.getQualityMetrics().setMPC(jf.getQualityMetrics().getMPC() + Double.parseDouble(calcEntries[9]));
+        jf.getQualityMetrics().setDAC(jf.getQualityMetrics().getDAC() + Integer.parseInt(calcEntries[10]));
+        jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
+        jf.getQualityMetrics().setSIZE1(jf.getQualityMetrics().getSIZE1() + Integer.parseInt(calcEntries[11]));
+        jf.getQualityMetrics().setSIZE2(jf.getQualityMetrics().getSIZE2() + Integer.parseInt(calcEntries[12]));
+        jf.getQualityMetrics().setCBO(jf.getQualityMetrics().getCBO() + Double.parseDouble(calcEntries[13]));
+        jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
     }
 }

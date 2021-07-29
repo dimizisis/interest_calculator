@@ -3,6 +3,7 @@ package db;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,7 +21,7 @@ public class DatabaseConnection {
     }
 
     public static Connection getConnection() {
-        if (connection != null)
+        if (Objects.nonNull(connection))
             return connection;
         return createConnection();
     }
@@ -38,7 +39,7 @@ public class DatabaseConnection {
     }
 
     public static void closeConnection(boolean success) {
-        if (connection != null) {
+        if (Objects.nonNull(connection)) {
             try {
                 if (success)
                     connection.commit();

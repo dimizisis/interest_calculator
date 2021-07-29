@@ -24,10 +24,10 @@ public class PackageMetrics extends WideMetrics {
 			increaseMetrics(currentPackage.getValue());
 		}
 
-		Set<Entry<String, ClassMetrics>> classes = MetricsCalculator.getPackageMetricsContainer()
+		Set<Entry<ClassIdentity, ClassMetrics>> classes = MetricsCalculator.getPackageMetricsContainer()
 				.getPackageClasses(packageName).entrySet();
-		Entry<String, ClassMetrics> currentClass;
-		for (Entry<String, ClassMetrics> aClass : classes) {
+		Entry<ClassIdentity, ClassMetrics> currentClass;
+		for (Entry<ClassIdentity, ClassMetrics> aClass : classes) {
 			currentClass = aClass;
 			increaseMetrics(currentClass.getValue());
 		}

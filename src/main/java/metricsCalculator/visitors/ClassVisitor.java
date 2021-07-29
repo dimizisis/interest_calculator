@@ -37,13 +37,13 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
     private CompilationUnit compilationUnit;
 
     public ClassVisitor(TypeDeclaration<?> jc, CompilationUnit cu, String srcRoot, ClassMetricsContainer classMap) {
-        if (!jc.isTopLevelType())
-            return;
         this.classMetricsContainer = classMap;
         this.compilationUnit = cu;
         try {
-            this.myFile = cu.getStorage().get().getSourceRoot().toString().replace("\\", "/").replace(MetricsCalculator.getProjectRoot().getRoot().toString().replace("\\", "/"), "").substring(1) + "/" + jc.resolve().getQualifiedName().replace(".", "/");
+            this.myFile = cu.getStorage().get().getPath().toString().replace("\\", "/").replace(MetricsCalculator.getProjectRoot().getRoot().toString().replace("\\", "/"), "").substring(1);
             this.myClassName = jc.resolve().getQualifiedName();
+            if (jc.isNestedType())
+                this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)","!");
         } catch (Exception e) {
             return;
         }
@@ -60,7 +60,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         if (packageName == null) return;
 
-        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myClassName, this.classMetrics);
+        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myFile, this.myClassName, this.classMetrics);
         MetricsCalculator.getPackageMetricsContainer().addPackage(packageName);
 
         this.classMetrics.setVisited();
@@ -80,7 +80,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         if (packageName == null) return;
 
-        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myClassName, this.classMetrics);
+        MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myFile, this.myClassName, this.classMetrics);
         MetricsCalculator.getPackageMetricsContainer().addPackage(packageName);
 
         this.classMetrics.setVisited();
@@ -271,24 +271,6 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      */
     private int calculateSize2(TypeDeclaration<?> javaClass) {
         return javaClass.getFields().size() + javaClass.getMethods().size();
-    }
-
-    /**
-     * Calculate number of classes contained in the class
-     * we are referring to
-     *
-     * @param javaClass the class or enum we are referring to
-     * @return the number of classes contained
-     * in the class we are referring to
-     */
-    private int calculateClassesNum(TypeDeclaration<?> javaClass) {
-        int classesNum = 1;
-        for (BodyDeclaration<?> member : javaClass.getMembers()) {
-            if (member.isClassOrInterfaceDeclaration()) {
-                ++classesNum;
-            }
-        }
-        return classesNum;
     }
 
     /**
@@ -601,7 +583,6 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         this.classMetrics.setRfc(this.responseSet.size() + this.classMetrics.getWmc()); //WMC as CIS angor
         this.classMetrics.setMpc(this.methodsCalled.size());    //angor
         this.classMetrics.setLcom(calculateLCOM());
-        this.classMetrics.setClassesNum(calculateClassesNum(javaClass));
     }
 
     /**

@@ -1,6 +1,7 @@
 package metricsCalculator.output;
 
 import metricsCalculator.calculator.MetricsCalculator;
+import metricsCalculator.metrics.ClassIdentity;
 import metricsCalculator.metrics.ClassMetrics;
 import metricsCalculator.metrics.PackageMetrics;
 import metricsCalculator.metrics.ProjectMetrics;
@@ -29,16 +30,16 @@ public class PrintResults implements CkjmOutputHandler {
 	}
 
 	public void printHeader() {
-		this.p.print("Name;");
+		this.p.print("File;ClassName;");
 		this.p.print("WMC;DIT;NOCC;RFC;LCOM;WMC;");						// Chidamber & Kemerer metrics
-		this.p.print("NOM;MPC;DAC;SIZE1;SIZE2;CBO;ClassesNum\n");	// Li & Henry metrics
+		this.p.print("NOM;MPC;DAC;SIZE1;SIZE2;CBO\n");	// Li & Henry metrics
 	}
 	
-   public void handleClass(String name, ClassMetrics c) {
+   public void handleClass(String fileName, String className, ClassMetrics c) {
 		try {
 			c.setGMOODLowLevel();
 			c.setQMOODHighLevel();
-			this.p.println(name + ";" + c.getCsvOutput());
+			this.p.println(fileName + ";" + className + ";" + c.getCsvOutput());
 		} catch (Exception e) {}
    }
 
@@ -63,12 +64,12 @@ public class PrintResults implements CkjmOutputHandler {
 		  handlePackage(currentPackage.getKey());
 	  }
 
-		Set<Entry<String, ClassMetrics>> classes = MetricsCalculator.getPackageMetricsContainer()
+		Set<Entry<ClassIdentity, ClassMetrics>> classes = MetricsCalculator.getPackageMetricsContainer()
 				.getPackageClasses(packageName).entrySet();
-		Entry<String, ClassMetrics> currentClass;
-	  for (Entry<String, ClassMetrics> aClass : classes) {
+		Entry<ClassIdentity, ClassMetrics> currentClass;
+	  for (Entry<ClassIdentity, ClassMetrics> aClass : classes) {
 		  currentClass = aClass;
-		  handleClass(currentClass.getKey(),
+		  handleClass(currentClass.getKey().getFilePath(), currentClass.getKey().getClassName(),
 				  currentClass.getValue());
 	  }
 	}
