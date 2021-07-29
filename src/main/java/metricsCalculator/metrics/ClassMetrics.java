@@ -102,8 +102,7 @@ public class ClassMetrics extends Metrics {
 		builder.append(this.getDac()).append(";");
 		builder.append(this.getSize1()).append(";");
 		builder.append(this.getSize2()).append(";");
-		builder.append(this.getCbo()).append(";");
-		builder.append(this.getClassesNum());
+		builder.append(this.getCbo());
 
 		return builder.toString();
 	}

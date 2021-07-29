@@ -6,22 +6,33 @@ import java.util.*;
 
 public class JavaFile {
     private String path;
+    private Set<String> classes;
     private final QualityMetrics qualityMetrics;
     private final TDInterest interest;
     private Kappa k;
 
     public JavaFile(String path) {
         this.path = path;
+        this.classes = new HashSet<>();
         this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
         this.setK(new Kappa());
     }
 
-    public JavaFile(String path, QualityMetrics qualityMetrics, Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC, Double kappa) {
+    public JavaFile(String path, QualityMetrics qualityMetrics, Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC, Double kappa, Set<String> classes) {
         this.path = path;
         this.qualityMetrics = qualityMetrics;
         this.interest = new TDInterest(interestInEuros, interestInHours, interestInAvgLOC, avgInterestPerLOC, sumInterestPerLOC);
         this.setK(new Kappa(kappa));
+        this.setClasses(classes);
+    }
+
+    public void addClassName(String className) {
+        classes.add(className);
+    }
+
+    public boolean containsClass(String className) {
+        return classes.contains(className);
     }
 
     public void calculateInterest() {
@@ -75,6 +86,14 @@ public class JavaFile {
 
     public void setK(Kappa k) {
         this.k = k;
+    }
+
+    public Set<String> getClasses() {
+        return classes;
+    }
+
+    public void setClasses(Set<String> classes) {
+        this.classes = classes;
     }
 
     @Override
