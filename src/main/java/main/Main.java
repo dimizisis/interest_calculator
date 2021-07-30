@@ -38,6 +38,7 @@ public class Main {
         System.out.println("Receiving all commit ids...");
         List<String> diffCommitIds = new ArrayList<>();
         List<String> commitIds = getCommitIds(Globals.getProjectURL());
+        System.out.println(commitIds.size());
         if (Objects.isNull(commitIds))
             return;
         int start = 0;
@@ -52,11 +53,13 @@ public class Main {
                 } else
                     return;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         try {
             deleteSourceCode(new File(Globals.getProjectPath()));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         System.out.printf("Cloning %s...\n", args[0]);
         cloneRepository();
@@ -72,7 +75,7 @@ public class Main {
             setMetrics(Globals.getProjectPath());
             System.out.println("Calculated metrics for all files from first commit!");
             insertFirstData(args);
-            Globals.setRevisionCount(Globals.getRevisionCount()+1);
+            Globals.setRevisionCount(Globals.getRevisionCount() + 1);
         } else {
             retrieveJavaFiles();
             commitIds = new ArrayList<>(diffCommitIds);
@@ -92,14 +95,15 @@ public class Main {
                 }
                 System.out.println("Calculated metrics for all files!");
                 insertData(args);
-            } catch (Exception ignored) {}
-            Globals.setRevisionCount(Globals.getRevisionCount()+1);
+            } catch (Exception ignored) {
+            }
+            Globals.setRevisionCount(Globals.getRevisionCount() + 1);
         }
         if (args.length == 2)
             DatabaseConnection.closeConnection(true);
         else
             writeCSV(args[2]);
-        System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount()-1);
+        System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount() - 1);
     }
 
     /**
@@ -115,8 +119,7 @@ public class Main {
             Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
             Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
             DatabaseConnection.getConnection().commit();
-        }
-        else
+        } else
             Globals.getJavaFiles().forEach(Globals::append);
     }
 
@@ -130,8 +133,7 @@ public class Main {
             Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
             Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
             DatabaseConnection.getConnection().commit();
-        }
-        else {
+        } else {
             Globals.getJavaFiles().forEach(Globals::append);
             Globals.compound();
         }
@@ -194,8 +196,7 @@ public class Main {
                 if (Objects.requireNonNull(file.list()).length == 0)
                     file.delete();
             }
-        }
-        else {
+        } else {
             /* If file, then delete it */
             file.delete();
         }
@@ -349,7 +350,7 @@ public class Main {
             String filePath = column[0];
             String className = column[1];
             JavaFile jf;
-            if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath))) {
+            if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                 jf = new JavaFile(filePath);
                 jf.addClassName(className);
                 registerMetrics(column, jf);
@@ -357,13 +358,23 @@ public class Main {
             } else {
                 jf = getAlreadyDefinedFile(filePath);
                 if (Objects.nonNull(jf)) {
-                    jf.addClassName(className);
-                    appendMetrics(column, jf);
+                    if (jf.containsClass(className)) {
+                        registerMetrics(column, jf);
+                    } else {
+                        jf.addClassName(className);
+                        appendMetrics(column, jf);
+                    }
                 }
             }
         }
     }
 
+    /**
+     * Finds java file by its path
+     *
+     * @param filePath the file path
+     * @return the java file (JavaFile) whose path matches the given one
+     */
     private static JavaFile getAlreadyDefinedFile(String filePath) {
         for (JavaFile jf : Globals.getJavaFiles())
             if (jf.getPath().equals(filePath))
@@ -389,19 +400,23 @@ public class Main {
                     String[] s = st.split("\\r?\\n");
                     String[] column = s[1].split(";");
                     if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(jf.getPath().replace("\\", "/")))) {
-                        if (!jf.containsClass(column[1]))
-                            jf.addClassName(column[1]);
+                        jf.addClassName(column[1]);
                         registerMetrics(column, jf);
                     } else {
-                        if (!jf.containsClass(column[1]))
+                        if (!jf.containsClass(column[1])) {
                             jf.addClassName(column[1]);
-                        appendMetrics(column, jf);
+                            appendMetrics(column, jf);
+                        } else {
+                            registerMetrics(column, jf);
+                        }
                     }
                     Globals.addJavaFile(jf);
-                } catch (ArrayIndexOutOfBoundsException ignored) {}
+                } catch (ArrayIndexOutOfBoundsException ignored) {
+                }
             }
             jfs.forEach(JavaFile::calculateInterest);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     /**

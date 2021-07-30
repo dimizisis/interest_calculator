@@ -14,7 +14,7 @@ public class InsertToDB {
         try {
             Connection conn = DatabaseConnection.getConnection();
 
-            PreparedStatement st = conn.prepareStatement("INSERT INTO projects (owner, repo, url) VALUES (?, ?, ?) ON CONFLICT (url) DO UPDATE SET url = ?;");
+            PreparedStatement st = conn.prepareStatement("INSERT INTO projects (owner, repo, url) VALUES (?, ?, ?) ON CONFLICT (owner, repo) DO UPDATE SET url = ?;");
             st.setString(1, Globals.getProjectOwner());
             st.setString(2, Globals.getProjectRepo());
             st.setString(3, Globals.getProjectURL());
@@ -34,7 +34,7 @@ public class InsertToDB {
         try {
             Connection conn = DatabaseConnection.getConnection();
 
-            PreparedStatement st = conn.prepareStatement("INSERT INTO files (pid, file_path, class_names, sha) VALUES ((SELECT pid FROM projects WHERE owner = '" + Globals.getProjectOwner() + "'), ?, ?, ?) ON CONFLICT (pid, file_path, sha) DO NOTHING");
+            PreparedStatement st = conn.prepareStatement("INSERT INTO files (pid, file_path, class_names, sha) VALUES ((SELECT pid FROM projects WHERE repo = '" + Globals.getProjectRepo() + "' AND owner = '" + Globals.getProjectOwner() + "'), ?, ?, ?) ON CONFLICT (pid, file_path, sha) DO NOTHING");
             st.setString(1, jf.getPath());
             Array classes = conn.createArrayOf("VARCHAR", jf.getClasses().toArray());
             st.setArray(2, classes);
@@ -57,7 +57,7 @@ public class InsertToDB {
 
             PreparedStatement st = conn.prepareStatement("INSERT INTO metrics (classes_num, " +
                     "complexity, dac, dit, fid, interest_eu, interest_in_hours, avg_interest_per_loc, interest_in_avg_loc, sum_interest_per_loc, lcom, mpc, nocc, old_size1, pid, " +
-                    "rfc, sha, size1, size2, wmc, nom, kappa, revision_count, cbo) VALUES (?, ?, ?, ?, (SELECT fid FROM files AS f WHERE file_path = '" + jf.getPath() + "' AND f.sha = '" + Globals.getCurrentSha() + "'), ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE owner = '" + Globals.getProjectOwner() + "' AND  repo = '" + Globals.getProjectRepo() + "'), ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    "rfc, sha, size1, size2, wmc, nom, kappa, revision_count, cbo) VALUES (?, ?, ?, ?, (SELECT fid FROM files AS f WHERE file_path = '" + jf.getPath() + "' AND f.sha = '" + Globals.getCurrentSha() + "'), ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE repo = '" + Globals.getProjectRepo() + "' AND owner = '" + Globals.getProjectOwner() + "'), ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
             st.setInt(1, jf.getQualityMetrics().getClassesNum());
             st.setDouble(2, jf.getQualityMetrics().getComplexity());
