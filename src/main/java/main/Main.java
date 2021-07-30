@@ -38,7 +38,6 @@ public class Main {
         System.out.println("Receiving all commit ids...");
         List<String> diffCommitIds = new ArrayList<>();
         List<String> commitIds = getCommitIds(Globals.getProjectURL());
-        System.out.println(commitIds.size());
         if (Objects.isNull(commitIds))
             return;
         int start = 0;
