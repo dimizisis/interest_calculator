@@ -40,7 +40,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         this.classMetricsContainer = classMap;
         this.compilationUnit = cu;
         try {
-            this.myFile = cu.getStorage().get().getPath().toString().replace("\\", "/").replace(MetricsCalculator.getProjectRoot().getRoot().toString().replace("\\", "/"), "").substring(1);
+            this.myFile = cu.getStorage().get().getPath().toString().replace("\\", "/").replace(MetricsCalculator.getFullPathOfProject(), "").substring(1);
             this.myClassName = jc.resolve().getQualifiedName();
             if (jc.isNestedType())
                 this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)","!");

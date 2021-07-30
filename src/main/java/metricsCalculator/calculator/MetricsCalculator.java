@@ -30,6 +30,7 @@ public class MetricsCalculator {
     private static Set<String> classesToAnalyse = new HashSet<>();
     private static String currentProject;
     private static ProjectRoot projectRoot;
+    private static String fullPathOfProject;
 
     public static void reset() {
         classMetricsContainer = new ClassMetricsContainer();
@@ -38,6 +39,7 @@ public class MetricsCalculator {
         classesToAnalyse = new HashSet<>();
         currentProject = "";
         projectRoot = null;
+        fullPathOfProject = "";
     }
 
     /**
@@ -48,6 +50,7 @@ public class MetricsCalculator {
     public static int start(String projectDir) {
         currentProject = projectDir;
         projectRoot = findProjectRoot();
+        setFullPathOfProject(getProjectRoot().getRoot().toAbsolutePath().toString().replace("\\", "/"));
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try {
             createSymbolSolver();
@@ -278,6 +281,14 @@ public class MetricsCalculator {
 
     public static String getCurrentProject() {
         return currentProject;
+    }
+
+    public static void setFullPathOfProject(String fullPathOfProject) {
+        MetricsCalculator.fullPathOfProject = fullPathOfProject;
+    }
+
+    public static String getFullPathOfProject() {
+        return fullPathOfProject;
     }
 
     public static boolean withinAnalysisBounds(String className) {
