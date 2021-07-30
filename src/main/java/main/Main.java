@@ -345,7 +345,6 @@ public class Main {
         String[] s = st.split("\\r?\\n");
         for (int i = 1; i < s.length; ++i) {
             String[] column = s[i].split(";");
-
             String filePath = column[0];
             String className = column[1];
             JavaFile jf;
@@ -388,34 +387,38 @@ public class Main {
      * @param jfs         the list of java files
      */
     private static void setMetrics(String projectPath, Set<JavaFile> jfs) {
+        if (jfs.isEmpty()) return;
+        int resultCode = MetricsCalculator.start(projectPath, jfs);
+        if (resultCode == -1) return;
+        String st = MetricsCalculator.printResults();
+        MetricsCalculator.reset();
+        String[] s = st.split("\\r?\\n");
         try {
-            for (JavaFile jf : jfs) {
-                int resultCode = MetricsCalculator.start(projectPath, jf.getPath().replace("\\", "/"));
-                if (resultCode == -1)
-                    continue;
-                try {
-                    String st = MetricsCalculator.printResults();
-                    MetricsCalculator.reset();
-                    String[] s = st.split("\\r?\\n");
-                    String[] column = s[1].split(";");
-                    if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(jf.getPath().replace("\\", "/")))) {
-                        jf.addClassName(column[1]);
-                        registerMetrics(column, jf);
-                    } else {
-                        if (!jf.containsClass(column[1])) {
-                            jf.addClassName(column[1]);
-                            appendMetrics(column, jf);
-                        } else {
-                            registerMetrics(column, jf);
-                        }
-                    }
+            for (int i = 1; i < s.length; ++i) {
+                String[] column = s[i].split(";");
+                String filePath = column[0];
+                String className = column[1];
+                JavaFile jf;
+                if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
+                    jf = new JavaFile(filePath);
+                    jf.addClassName(className);
+                    registerMetrics(column, jf);
+                    jf.calculateInterest();
                     Globals.addJavaFile(jf);
-                } catch (ArrayIndexOutOfBoundsException ignored) {
+                } else {
+                    jf = getAlreadyDefinedFile(filePath);
+                    if (Objects.nonNull(jf)) {
+                        if (jf.containsClass(className)) {
+                            registerMetrics(column, jf);
+                        } else {
+                            jf.addClassName(className);
+                            appendMetrics(column, jf);
+                        }
+                        jf.calculateInterest();
+                    }
                 }
             }
-            jfs.forEach(JavaFile::calculateInterest);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     /**

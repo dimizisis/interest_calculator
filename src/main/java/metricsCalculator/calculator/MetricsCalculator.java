@@ -10,6 +10,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeS
 import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
+import infrastructure.interest.JavaFile;
 import metricsCalculator.containers.ClassMetricsContainer;
 import metricsCalculator.containers.PackageMetricsContainer;
 import metricsCalculator.containers.ProjectMetricsContainer;
@@ -21,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class MetricsCalculator {
 
@@ -62,6 +64,30 @@ public class MetricsCalculator {
             return -1;
         }
         startCalculations(sourceRoots);
+        calculateAllMetrics(getCurrentProject());
+        return 0;
+    }
+
+    /**
+     * Start the whole process
+     *
+     * @return 0 if everything went ok, -1 otherwise
+     */
+    public static int start(String projectDir, Set<JavaFile> jfs) {
+        currentProject = projectDir;
+        projectRoot = findProjectRoot();
+        setFullPathOfProject(getProjectRoot().getRoot().toAbsolutePath().toString().replace("\\", "/"));
+        List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
+        try {
+            createSymbolSolver();
+        } catch (IllegalStateException e) {
+            return -1;
+        }
+        if (createClassSet(sourceRoots) == 0) {
+            System.err.println("No classes could be identified! Exiting...");
+            return -1;
+        }
+        startCalculations(sourceRoots, jfs);
         calculateAllMetrics(getCurrentProject());
         return 0;
     }
@@ -184,10 +210,34 @@ public class MetricsCalculator {
                                 analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
                             });
                         });
+            } catch (IOException ignored) {}
+        });
+    }
+
+    /**
+     * Starts the calculations
+     *
+     * @param sourceRoots the list of source roots of project
+     */
+    private static void startCalculations(List<SourceRoot> sourceRoots, Set<JavaFile> jfs) {
+        sourceRoots.forEach(sourceRoot -> {
+            try {
+                sourceRoot.tryToParse()
+                        .stream()
+                        .filter(res -> res.getResult().isPresent())
+                        .filter(res -> res.getResult().get().getStorage().isPresent())
+                        .filter(res -> jfs.stream().map(JavaFile::getPath).collect(Collectors.toList()).contains(res.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(getFullPathOfProject(), "").substring(1)))
+                        .forEach(res -> {
+                            CompilationUnit cu = res.getResult().get();
+                            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
+                                analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
+                            });
+                        });
             } catch (IOException ignored) {
             }
         });
     }
+
 
     private static void startCalculations(List<SourceRoot> sourceRoots) {
         sourceRoots
