@@ -60,7 +60,6 @@ public class MetricsCalculator {
             return -1;
         }
         if (createClassSet(sourceRoots) == 0) {
-            System.err.println("No classes could be identified! Exiting...");
             return -1;
         }
         startCalculations(sourceRoots);
@@ -84,7 +83,6 @@ public class MetricsCalculator {
             return -1;
         }
         if (createClassSet(sourceRoots) == 0) {
-            System.err.println("No classes could be identified! Exiting...");
             return -1;
         }
         startCalculations(sourceRoots, jfs);
@@ -107,7 +105,6 @@ public class MetricsCalculator {
             return -1;
         }
         if (createClassSet(sourceRoots) == 0) {
-            System.err.println("No classes could be identified! Exiting...");
             return -1;
         }
 
@@ -174,9 +171,7 @@ public class MetricsCalculator {
             cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
                 try {
                     classesToAnalyse.add(c.resolve().getQualifiedName());
-                } catch (Exception ignored) {
-                    System.out.println("error");
-                }
+                } catch (Exception ignored) {}
             });
         } catch (Exception ignored) {
         }

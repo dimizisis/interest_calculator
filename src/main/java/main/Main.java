@@ -3,7 +3,6 @@ package main;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -40,6 +39,7 @@ public class Main {
         List<String> commitIds = getCommitIds(Globals.getProjectURL());
         if (Objects.isNull(commitIds))
             return;
+        Collections.reverse(commitIds);
         int start = 0;
         boolean existsInDb = false;
         try {
@@ -57,8 +57,7 @@ public class Main {
 
         try {
             deleteSourceCode(new File(Globals.getProjectPath()));
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
         System.out.printf("Cloning %s...\n", args[0]);
         cloneRepository();
@@ -75,6 +74,7 @@ public class Main {
             System.out.println("Calculated metrics for all files from first commit!");
             insertFirstData(args);
             Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+            DatabaseConnection.getConnection().commit();
         } else {
             retrieveJavaFiles();
             commitIds = new ArrayList<>(diffCommitIds);
@@ -86,17 +86,18 @@ public class Main {
             System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
             try {
                 PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(Globals.getProjectURL(), Globals.getCurrentSha());
-                if (Objects.isNull(responseEntities))
+                if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
+                    InsertToDB.insertEmpty();
+                    System.out.println("Calculated metrics for all files!");
                     continue;
-                if (responseEntities.length > 0) {
-                    System.out.println("Analyzing new/modified commit files...");
-                    setMetrics(responseEntities[0].getDiffEntries());
                 }
+                System.out.println("Analyzing new/modified commit files...");
+                setMetrics(responseEntities[0].getDiffEntries());
                 System.out.println("Calculated metrics for all files!");
                 insertData(args);
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
             Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+            DatabaseConnection.getConnection().commit();
         }
         if (args.length == 2)
             DatabaseConnection.closeConnection(true);
@@ -110,28 +111,33 @@ public class Main {
      *
      * @param args the string array containing the arguments that the user provided
      */
-    private static void insertFirstData(String[] args) throws SQLException {
+    private static void insertFirstData(String[] args) {
         if (args.length == 2) {
             InsertToDB.insertProjectToDatabase();
-            DatabaseConnection.getConnection().commit();
 
-            Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
-            Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
-            DatabaseConnection.getConnection().commit();
+            if (Globals.getJavaFiles().size() == 0)
+                InsertToDB.insertEmpty();
+            else {
+                Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
+                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+            }
         } else
             Globals.getJavaFiles().forEach(Globals::append);
     }
 
     /**
-     * Inserts the data of the some revision in database or in a stringbuilder.
+     * Inserts the data of some revision in database or in a stringbuilder.
      *
      * @param args the string array containing the arguments that the user provided
      */
-    private static void insertData(String[] args) throws SQLException {
+    private static void insertData(String[] args) {
         if (args.length == 2) {
-            Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
-            Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
-            DatabaseConnection.getConnection().commit();
+            if (Globals.getJavaFiles().size() == 0)
+                InsertToDB.insertEmpty();
+            else {
+                Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
+                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
+            }
         } else {
             Globals.getJavaFiles().forEach(Globals::append);
             Globals.compound();

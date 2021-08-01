@@ -90,4 +90,47 @@ public class InsertToDB {
         }
         return false;
     }
+
+    public static boolean insertEmpty() {
+
+        try {
+
+            Connection conn = DatabaseConnection.getConnection();
+
+            PreparedStatement st = conn.prepareStatement("INSERT INTO metrics (classes_num, " +
+                    "complexity, dac, dit, fid, interest_eu, interest_in_hours, avg_interest_per_loc, interest_in_avg_loc, sum_interest_per_loc, lcom, mpc, nocc, old_size1, pid, " +
+                    "rfc, sha, size1, size2, wmc, nom, kappa, revision_count, cbo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT pid FROM projects WHERE repo = '" + Globals.getProjectRepo() + "' AND owner = '" + Globals.getProjectOwner() + "'), ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+            st.setInt(1, 0);
+            st.setDouble(2, 0.0);
+            st.setInt(3, 0);
+            st.setInt(4, 0);
+            st.setInt(5, -1);
+            st.setDouble(6, 0.0);
+            st.setDouble(7, 0.0);
+            st.setDouble(8, 0.0);
+            st.setDouble(9, 0.0);
+            st.setDouble(10, 0.0);
+            st.setDouble(11, 0.0);
+            st.setDouble(12, 0.0);
+            st.setInt(13, 0);
+            st.setInt(14, 0);
+            st.setDouble(15, 0.0);
+            st.setString(16, Globals.getCurrentSha());
+            st.setInt(17, 0);
+            st.setInt(18, 0);
+            st.setDouble(19, 0.0);
+            st.setDouble(20, 0.0);
+            st.setDouble(21, 0.0);
+            st.setDouble(22, Globals.getRevisionCount());
+            st.setDouble(23, 0.0);
+            st.executeUpdate();
+            st.close();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+        return false;
+    }
 }
