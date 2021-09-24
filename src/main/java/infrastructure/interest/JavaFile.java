@@ -2,6 +2,7 @@ package infrastructure.interest;
 
 import data.Globals;
 import infrastructure.Revision;
+
 import java.util.*;
 
 public class JavaFile {
@@ -9,6 +10,7 @@ public class JavaFile {
     private Set<String> classes;
     private final QualityMetrics qualityMetrics;
     private final TDInterest interest;
+    private Revision currentRevision;
     private Kappa k;
 
     public JavaFile(String path, Revision revision) {
@@ -16,6 +18,7 @@ public class JavaFile {
         this.classes = new HashSet<>();
         this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
+        this.currentRevision = revision;
         this.setK(new Kappa(revision));
     }
 
@@ -24,6 +27,7 @@ public class JavaFile {
         this.qualityMetrics = qualityMetrics;
         this.interest = new TDInterest(interestInEuros, interestInHours, interestInAvgLOC, avgInterestPerLOC, sumInterestPerLOC);
         this.setK(new Kappa(revision, kappa));
+        this.currentRevision = revision;
         this.setClasses(classes);
     }
 
@@ -214,7 +218,7 @@ public class JavaFile {
             Globals.getJavaFiles()
                     .stream()
                     .filter(jf -> !Objects.equals(JavaFile.this, jf))
-                    .forEach(jf -> similarityOfFiles.add(new Similarity(JavaFile.this, jf, 1 - calculateSimilarityIndex(jf))));
+                    .forEach(jf -> similarityOfFiles.add(new Similarity(JavaFile.this, jf, calculateSimilarityIndex(jf))));
             return similarityOfFiles;
         }
 
@@ -231,8 +235,12 @@ public class JavaFile {
             if (similarityOfFiles.size() < 5)
                 return null;
             /* Keep top 5 */
-            for (int i = 0; i < 5; ++i)
-                topFiveNeighbors.add(Objects.requireNonNull(similarityOfFiles.poll()).getJf2());
+            for (int i = 0; i < 5; ++i) {
+                Similarity similarity = similarityOfFiles.poll();
+                topFiveNeighbors.add(Objects.requireNonNull(similarity).getJf2());
+//                    System.out.printf("********* Commit %s: No%d neighbor for file %s is: %s (Similarity = %g) *********\n", JavaFile.this.currentRevision.getSha(), i + 1, JavaFile.this.getPath(), similarity.getJf2().getPath(), similarity.getSimilarity());
+            }
+            System.out.println();
             return topFiveNeighbors;
         }
 
@@ -249,11 +257,16 @@ public class JavaFile {
             double jfFunctions = (JavaFile.this.getQualityMetrics().getWMC() == 0) ? 1 : JavaFile.this.getQualityMetrics().getWMC();
             int jfLOC = (JavaFile.this.getQualityMetrics().getSIZE1() == 0) ? 1 : JavaFile.this.getQualityMetrics().getSIZE1();
 
-            return (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) * 1.0 / jfClasses
-                    + Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) / jfComplexity
-                    + Math.abs(JavaFile.this.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / jfFunctions
-                    + Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - jf2.getQualityMetrics().getSIZE1()) * 1.0 / jfLOC
-                    / 4);
+            double numOfClassesSimilarityPercentage = 100 - (double) (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) / Math.max(JavaFile.this.getQualityMetrics().getClassesNum(), jf2.getQualityMetrics().getClassesNum()) * 100);
+            double complexitySimilarityPercentage = 100 - (Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) / Math.max(JavaFile.this.getQualityMetrics().getComplexity(), jf2.getQualityMetrics().getComplexity()) * 100);
+            double methodSimilarityPercentage = 100 - (Math.abs(JavaFile.this.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / Math.max(JavaFile.this.getQualityMetrics().getWMC(), jf2.getQualityMetrics().getWMC()) * 100);
+            double linesOfCodeSimilarityPercentage = 100 - (double) (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - jf2.getQualityMetrics().getSIZE1()) / Math.max(JavaFile.this.getQualityMetrics().getSIZE1(), jf2.getQualityMetrics().getSIZE1()) * 100);
+
+            return (numOfClassesSimilarityPercentage
+                    + complexitySimilarityPercentage
+                    + methodSimilarityPercentage
+                    + linesOfCodeSimilarityPercentage)
+                    / 4;
         }
 
         /**

@@ -1,7 +1,6 @@
 package data;
 
 import infrastructure.interest.JavaFile;
-
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
