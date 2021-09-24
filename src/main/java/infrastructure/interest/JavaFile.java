@@ -1,7 +1,7 @@
 package infrastructure.interest;
 
 import data.Globals;
-
+import infrastructure.Revision;
 import java.util.*;
 
 public class JavaFile {
@@ -11,19 +11,19 @@ public class JavaFile {
     private final TDInterest interest;
     private Kappa k;
 
-    public JavaFile(String path) {
+    public JavaFile(String path, Revision revision) {
         this.path = path;
         this.classes = new HashSet<>();
         this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
-        this.setK(new Kappa());
+        this.setK(new Kappa(revision));
     }
 
-    public JavaFile(String path, QualityMetrics qualityMetrics, Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC, Double kappa, Set<String> classes) {
+    public JavaFile(String path, QualityMetrics qualityMetrics, Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC, Double kappa, Set<String> classes, Revision revision) {
         this.path = path;
         this.qualityMetrics = qualityMetrics;
         this.interest = new TDInterest(interestInEuros, interestInHours, interestInAvgLOC, avgInterestPerLOC, sumInterestPerLOC);
-        this.setK(new Kappa(kappa));
+        this.setK(new Kappa(revision, kappa));
         this.setClasses(classes);
     }
 
@@ -95,6 +95,7 @@ public class JavaFile {
     public void setClasses(Set<String> classes) {
         this.classes = classes;
     }
+
 
     @Override
     public boolean equals(Object o) {
@@ -361,17 +362,24 @@ public class JavaFile {
     class Kappa {
 
         private Double value;
+        private Revision revision;
 
         public Kappa() {
             this.setValue(0.0);
         }
 
-        public Kappa(Double value) {
+        public Kappa(Revision revision) {
+            this.revision = revision;
+            this.setValue(0.0);
+        }
+
+        public Kappa(Revision currentRevision, Double value) {
+            this.revision = currentRevision;
             this.setValue(value);
         }
 
         public void update(Integer oldLOC) {
-            this.setValue((this.getValue() * (Globals.getRevisionCount() - 1) + (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - oldLOC))) / Globals.getRevisionCount());
+            this.setValue((this.getValue() * (getRevision().getRevisionCount() - 1) + (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - oldLOC))) / getRevision().getRevisionCount());
         }
 
         public Double getValue() {
@@ -380,6 +388,14 @@ public class JavaFile {
 
         public void setValue(Double newVal) {
             this.value = newVal;
+        }
+
+        public Revision getRevision() {
+            return revision;
+        }
+
+        public void setRevision(Revision revision) {
+            this.revision = revision;
         }
     }
 }

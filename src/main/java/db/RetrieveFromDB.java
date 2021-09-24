@@ -1,19 +1,19 @@
 package db;
 
 import data.Globals;
+import infrastructure.Project;
+import infrastructure.Revision;
 import infrastructure.interest.JavaFile;
 import infrastructure.interest.QualityMetrics;
 
 import java.sql.*;
 import java.util.*;
 
-import static data.Globals.*;
-
 public class RetrieveFromDB {
 
-    public static boolean ProjectExistsInDatabase() {
-        String owner = Globals.getProjectOwner();
-        String repoName = getProjectRepo();
+    public static boolean ProjectExistsInDatabase(Project project) {
+        String owner = project.getOwner();
+        String repoName = project.getRepo();
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement st = conn.prepareStatement("SELECT owner, repo FROM projects WHERE owner = ? AND repo = ?");
@@ -25,9 +25,9 @@ public class RetrieveFromDB {
         return false;
     }
 
-    public static List<String> getExistingCommitIds() {
-        String owner = Globals.getProjectOwner();
-        String repoName = getProjectRepo();
+    public static List<String> getExistingCommitIds(Project project) {
+        String owner = project.getOwner();
+        String repoName = project.getRepo();
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement st = conn.prepareStatement("SELECT DISTINCT sha FROM metrics WHERE pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?)");
@@ -44,23 +44,25 @@ public class RetrieveFromDB {
         return null;
     }
 
-    public static Integer getLastVersionNum() {
-        String owner = Globals.getProjectOwner();
-        String repoName = getProjectRepo();
+    public static Revision getLastRevision(Project project) {
+        String owner = project.getOwner();
+        String repoName = project.getRepo();
         try {
             Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement st = conn.prepareStatement("SELECT revision_count FROM metrics WHERE pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?) ORDER BY revision_count DESC LIMIT 1");
+            PreparedStatement st = conn.prepareStatement("SELECT sha, revision_count FROM metrics WHERE pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?) ORDER BY revision_count DESC LIMIT 1");
             st.setString(1, owner);
             st.setString(2, repoName);
             ResultSet resultSet = st.executeQuery();
-            int revisionCount = 0;
-            while (resultSet.next())
-                revisionCount = resultSet.getInt("revision_count");
-            return revisionCount;
+            Revision revision = new Revision();
+            while (resultSet.next()) {
+                revision.setSha(resultSet.getString("sha"));
+                revision.setRevisionCount(resultSet.getInt("revision_count"));
+            }
+            return revision;
         } catch (SQLException e) {
             System.out.println(e);
         }
-        return 0;
+        return null;
     }
 
     public static String getFilePathById(Integer fid) {
@@ -95,9 +97,9 @@ public class RetrieveFromDB {
         return null;
     }
 
-    public static void retrieveJavaFiles() {
-        String owner = Globals.getProjectOwner();
-        String repoName = getProjectRepo();
+    public static void retrieveJavaFiles(Project project) {
+        String owner = project.getOwner();
+        String repoName = project.getRepo();
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement st = conn.prepareStatement("SELECT revision_count, m.sha AS sha, classes_num, complexity, dac, dit, interest_eu, interest_in_hours, avg_interest_per_loc, interest_in_avg_loc, sum_interest_per_loc, lcom, mpc, nocc, old_size1, rfc, size1, size2, wmc, nom, kappa, cbo, file_path, class_names FROM metrics m JOIN files f ON m.fid = f.fid WHERE m.pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?) AND revision_count = (SELECT MAX(revision_count) FROM metrics)");
@@ -105,6 +107,7 @@ public class RetrieveFromDB {
             st.setString(2, repoName);
             ResultSet resultSet = st.executeQuery();
             while (resultSet.next()) {
+                Integer revisionCount = resultSet.getInt("revision_count");
                 String sha = resultSet.getString("sha");
                 String filePath = resultSet.getString("file_path");
                 Integer classesNum = resultSet.getInt("classes_num");
@@ -129,7 +132,7 @@ public class RetrieveFromDB {
                 Double kappa = resultSet.getDouble("kappa");
                 Array classesArr = resultSet.getArray("class_names");
                 Set<String> classes = Set.of((String[]) (classesArr != null ? classesArr.getArray() : new HashSet<>()));
-                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(sha, classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, oldSize1, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa, classes));
+                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(sha, classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, oldSize1, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa, classes, new Revision(sha, revisionCount)));
             }
         } catch (SQLException e) {
             System.out.println(e);

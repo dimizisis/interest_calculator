@@ -58,7 +58,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         String packageName = getPackageName(en);
 
-        if (packageName == null) return;
+        if (Objects.isNull(packageName))
+            return;
 
         MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myFile, this.myClassName, this.classMetrics);
         MetricsCalculator.getPackageMetricsContainer().addPackage(packageName);
@@ -78,7 +79,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         String packageName = getPackageName(javaClass);
 
-        if (packageName == null) return;
+        if (Objects.isNull(packageName))
+            return;
 
         MetricsCalculator.getPackageMetricsContainer().addClassToPackage(packageName, this.myFile, this.myClassName, this.classMetrics);
         MetricsCalculator.getPackageMetricsContainer().addPackage(packageName);

@@ -1,7 +1,5 @@
 package infrastructure.interest;
 
-import data.Globals;
-
 public final class QualityMetrics {
 
     private String sha;
@@ -52,7 +50,6 @@ public final class QualityMetrics {
         this.SIZE1 = 0;
         this.SIZE2 = 0;
         this.oldSIZE1 = 0;
-        this.sha = Globals.getCurrentSha();
     }
 
     public void normalize() {

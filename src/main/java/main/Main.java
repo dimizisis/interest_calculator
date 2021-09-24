@@ -1,8 +1,6 @@
 package main;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,6 +13,8 @@ import data.Globals;
 import db.DatabaseConnection;
 import db.InsertToDB;
 import db.RetrieveFromDB;
+import infrastructure.Project;
+import infrastructure.Revision;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
 import infrastructure.newcode.PrincipalResponseEntity;
@@ -27,120 +27,103 @@ import static db.RetrieveFromDB.*;
 
 public class Main {
 
+    /*
+    0: Analysis ok
+    -1: Git error, wrong url or internet connection problem
+    -2: Mandatory arguments not provided
+     */
+
     public static void main(String[] args) throws Exception {
 
-        Globals.setProjectURL(args[0]);
-        Globals.setProjectOwner();
-        Globals.setProjectRepo();
-        Globals.setProjectPath(args[1]);
-        Globals.setRevisionCount(1);
+        if (args.length < 2)
+            System.exit(-2);
+
+        Project project = new Project(args[0], args[1]);
         System.out.println("Receiving all commit ids...");
         List<String> diffCommitIds = new ArrayList<>();
-        List<String> commitIds = getCommitIds(Globals.getProjectURL());
+        List<String> commitIds = getCommitIds(project.getUrl());
         if (Objects.isNull(commitIds))
             return;
         Collections.reverse(commitIds);
         int start = 0;
         boolean existsInDb = false;
+        Revision currentRevision = new Revision("", 0);
         try {
-            existsInDb = RetrieveFromDB.ProjectExistsInDatabase();
+            existsInDb = RetrieveFromDB.ProjectExistsInDatabase(project);
             if (existsInDb) {
-                List<String> existingCommitIds = getExistingCommitIds();
+                List<String> existingCommitIds = getExistingCommitIds(project);
                 diffCommitIds = findDifferenceInCommitIds(commitIds, existingCommitIds);
-                if (!diffCommitIds.isEmpty()) {
-                    Globals.setRevisionCount(getLastVersionNum() + 1);
-                } else
-                    return;
+                if (!diffCommitIds.isEmpty())
+                    currentRevision = getLastRevision(project);
+                else
+                    System.exit(0);
             }
         } catch (Exception ignored) {
         }
 
         try {
-            deleteSourceCode(new File(Globals.getProjectPath()));
-        } catch (Exception ignored) {}
+            deleteSourceCode(new File(project.getClonePath()));
+        } catch (Exception ignored) {
+        }
 
-        System.out.printf("Cloning %s...\n", args[0]);
-        cloneRepository();
+        System.out.printf("Cloning %s...\n", project.getUrl());
+        Git git = cloneRepository(project);
 
-        if (Objects.isNull(Globals.getGit()))
-            return;
+        if (Objects.isNull(git))
+            System.exit(-1);
 
         if (!existsInDb || diffCommitIds.containsAll(commitIds)) {
             start = 1;
-            Globals.setCurrentSha(Objects.requireNonNull(commitIds.get(0)));
-            checkout(commitIds.get(0), Globals.getRevisionCount());
-            System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
-            setMetrics(Globals.getProjectPath());
+            Objects.requireNonNull(currentRevision).setSha(Objects.requireNonNull(commitIds.get(0)));
+            Objects.requireNonNull(currentRevision).setRevisionCount(currentRevision.getRevisionCount() + 1);
+            checkout(project, currentRevision, Objects.requireNonNull(git));
+            System.out.printf("Calculating metrics for commit %s (%d)...\n", currentRevision.getSha(), currentRevision.getRevisionCount());
+            setMetrics(project, currentRevision);
             System.out.println("Calculated metrics for all files from first commit!");
-            insertFirstData(args);
-            Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+            InsertToDB.insertProjectToDatabase(project);
+            insertData(project, currentRevision);
             DatabaseConnection.getConnection().commit();
         } else {
-            retrieveJavaFiles();
+            retrieveJavaFiles(project);
             commitIds = new ArrayList<>(diffCommitIds);
         }
 
         for (int i = start; i < commitIds.size(); ++i) {
-            Globals.setCurrentSha(commitIds.get(i));
-            checkout(Globals.getCurrentSha(), Globals.getRevisionCount());
-            System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
+            Objects.requireNonNull(currentRevision).setSha(commitIds.get(i));
+            currentRevision.setRevisionCount(currentRevision.getRevisionCount() + 1);
+            checkout(Objects.requireNonNull(project), Objects.requireNonNull(currentRevision), Objects.requireNonNull(git));
+            System.out.printf("Calculating metrics for commit %s (%d)...\n", currentRevision.getSha(), currentRevision.getRevisionCount());
             try {
-                PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(Globals.getProjectURL(), Globals.getCurrentSha());
+                PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(project.getUrl(), currentRevision.getSha());
                 if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
-                    InsertToDB.insertEmpty();
+                    InsertToDB.insertEmpty(project, currentRevision);
                     System.out.println("Calculated metrics for all files!");
                     continue;
                 }
                 System.out.println("Analyzing new/modified commit files...");
-                setMetrics(responseEntities[0].getDiffEntries());
+                setMetrics(project, currentRevision, responseEntities[0].getDiffEntries());
                 System.out.println("Calculated metrics for all files!");
-                insertData(args);
-            } catch (Exception ignored) {}
-            Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+                insertData(project, currentRevision);
+            } catch (Exception ignored) {
+            }
             DatabaseConnection.getConnection().commit();
         }
-        if (args.length == 2)
-            DatabaseConnection.closeConnection(true);
-        else
-            writeCSV(args[2]);
-        System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount() - 1);
+        DatabaseConnection.closeConnection(true);
+        System.out.printf("Finished analysing %d revisions.\n", Objects.requireNonNull(currentRevision).getRevisionCount());
     }
 
     /**
      * Inserts the data of the first revision (in list).
      *
-     * @param args the string array containing the arguments that the user provided
+     * @param project the project we are referring to
+     * @param currentRevision the current revision we are analysing
      */
-    private static void insertFirstData(String[] args) {
-        if (args.length == 2) {
-            InsertToDB.insertProjectToDatabase();
-
-            if (Globals.getJavaFiles().size() == 0)
-                InsertToDB.insertEmpty();
-            else {
-                Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
-                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
-            }
-        } else
-            Globals.getJavaFiles().forEach(Globals::append);
-    }
-
-    /**
-     * Inserts the data of some revision in database or in a stringbuilder.
-     *
-     * @param args the string array containing the arguments that the user provided
-     */
-    private static void insertData(String[] args) {
-        if (args.length == 2) {
-            if (Globals.getJavaFiles().size() == 0)
-                InsertToDB.insertEmpty();
-            else {
-                Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
-                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
-            }
-        } else {
-            Globals.getJavaFiles().forEach(Globals::append);
-            Globals.compound();
+    private static void insertData(Project project, Revision currentRevision) {
+        if (Globals.getJavaFiles().size() == 0)
+            InsertToDB.insertEmpty(project, currentRevision);
+        else {
+            Globals.getJavaFiles().forEach(jf -> InsertToDB.insertFileToDatabase(project, jf, currentRevision));
+            Globals.getJavaFiles().forEach(jf -> InsertToDB.insertMetricsToDatabase(project, jf, currentRevision));
         }
     }
 
@@ -156,23 +139,6 @@ public class Main {
         if (Objects.nonNull(existingCommitIds))
             diffCommitIds.removeAll(existingCommitIds);
         return diffCommitIds;
-    }
-
-    /**
-     * Writes a CSV file containing all the information needed.
-     *
-     * @param path the path of the output file.
-     */
-    private static void writeCSV(String path) throws IOException {
-
-        FileWriter csvWriter = new FileWriter(path);
-
-        for (String header : Globals.getOutputHeaders())
-            csvWriter.append(header);
-        csvWriter.append(Globals.getOutput());
-
-        csvWriter.flush();
-        csvWriter.close();
     }
 
     /**
@@ -243,15 +209,16 @@ public class Main {
     /**
      * Removes those files that are marked as 'DELETED' (new code's call)
      *
+     * @param project the project we are referring to
      * @param diffEntries the modified java files (new, modified, deleted)
      */
-    private static Set<JavaFile> removeDeletedFiles(List<DiffEntry> diffEntries) {
+    private static Set<JavaFile> removeDeletedFiles(Project project, Revision currentRevision, List<DiffEntry> diffEntries) {
         Set<JavaFile> deletedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
                 .filter(diffEntry -> diffEntry.getChangeType().equals("DELETE"))
                 .forEach(diffEntry -> {
-                    deletedFiles.add(new JavaFile(diffEntry.getOldFilePath()));
+                    deletedFiles.add(new JavaFile(diffEntry.getOldFilePath(), currentRevision));
                     Globals.getJavaFiles().removeIf(javaFile -> javaFile.getPath().endsWith(diffEntry.getOldFilePath()));
                 });
         return deletedFiles;
@@ -263,23 +230,24 @@ public class Main {
      * @param diffEntries the modified java files (new, modified, deleted)
      * @return a set containing all the new files
      */
-    private static Set<JavaFile> findNewFiles(List<DiffEntry> diffEntries) {
+    private static Set<JavaFile> findNewFiles(Revision currentRevision, List<DiffEntry> diffEntries) {
         Set<JavaFile> newFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
                 .filter(diffEntry -> diffEntry.getChangeType().equals("ADD"))
                 .filter(diffEntry -> diffEntry.getNewFilePath().toLowerCase().endsWith(".java"))
-                .forEach(diffEntry -> newFiles.add(new JavaFile(diffEntry.getNewFilePath())));
+                .forEach(diffEntry -> newFiles.add(new JavaFile(diffEntry.getNewFilePath(), currentRevision)));
         return newFiles;
     }
 
     /**
      * Find those files that are marked as 'MODIFIED' (new code's call)
      *
+     * @param project the project we are referring to
      * @param diffEntries the modified java files (new, modified, deleted)
      * @return a set containing all the modified files
      */
-    private static Set<JavaFile> findModifiedFiles(List<DiffEntry> diffEntries) {
+    private static Set<JavaFile> findModifiedFiles(Project project, List<DiffEntry> diffEntries) {
         Set<JavaFile> modifiedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
@@ -297,53 +265,60 @@ public class Main {
 
     /**
      * Clones a repo to a specified path.
+     * @param project the project we are referring to
+     * @return a git object
      */
-    private static void cloneRepository() {
+    private static Git cloneRepository(Project project) {
         try {
-            Globals.setGit(Git.cloneRepository()
-                    .setURI(Globals.getProjectURL())
-                    .setDirectory(new File(Globals.getProjectPath()))
-                    .call());
+            return Git.cloneRepository()
+                    .setURI(project.getUrl())
+                    .setDirectory(new File(project.getClonePath()))
+                    .call();
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     /**
      * Checkouts to specified commitId (SHA)
      *
-     * @param commitId the SHA we are checking out to
+     * @param project the project we are referring to
+     * @param currentRevision the revision we are checking out to
+     * @param git a git object
      */
-    private static void checkout(String commitId, int versionNum) throws GitAPIException {
+    private static void checkout(Project project, Revision currentRevision, Git git) throws GitAPIException {
         try {
-            Globals.getGit().checkout().setCreateBranch(true).setName("version" + versionNum).setStartPoint(commitId).call();
+            git.checkout().setCreateBranch(true).setName("version" + currentRevision.getRevisionCount()).setStartPoint(currentRevision.getSha()).call();
         } catch (CheckoutConflictException e) {
-            deleteSourceCode(new File(Globals.getProjectPath()));
-            cloneRepository();
-            Globals.getGit().checkout().setCreateBranch(true).setName("version" + versionNum).setStartPoint(commitId).call();
+            deleteSourceCode(new File(project.getClonePath()));
+            cloneRepository(project);
+            git.checkout().setCreateBranch(true).setName("version" + currentRevision.getRevisionCount()).setStartPoint(currentRevision.getSha()).call();
         }
     }
 
     /**
      * Sets the metrics of new and modified files.
      *
+     * @param project the project we are referring to
+     * @param currentRevision the revision we are analysing
      * @param diffEntries the list containing the diff entries received.
      */
-    private static void setMetrics(List<DiffEntry> diffEntries) {
-        removeDeletedFiles(diffEntries);
-        Set<JavaFile> newFiles = findNewFiles(Objects.requireNonNull(diffEntries));
-        Set<JavaFile> modifiedFiles = findModifiedFiles(Objects.requireNonNull(diffEntries));
-        setMetrics(Globals.getProjectPath(), newFiles);
-        setMetrics(Globals.getProjectPath(), modifiedFiles);
+    private static void setMetrics(Project project, Revision currentRevision, List<DiffEntry> diffEntries) {
+        removeDeletedFiles(project, currentRevision, diffEntries);
+        Set<JavaFile> newFiles = findNewFiles(currentRevision, Objects.requireNonNull(diffEntries));
+        Set<JavaFile> modifiedFiles = findModifiedFiles(project, Objects.requireNonNull(diffEntries));
+        setMetrics(project, currentRevision, newFiles);
+        setMetrics(project, currentRevision, modifiedFiles);
     }
 
     /**
      * Get Metrics from Metrics Calculator for every java file (initial calculation)
      *
-     * @param projectPath the project root
+     * @param project the project we are referring to
      */
-    private static void setMetrics(String projectPath) {
-        int resultCode = MetricsCalculator.start(projectPath);
+    private static void setMetrics(Project project, Revision currentRevision) {
+        int resultCode = MetricsCalculator.start(project.getClonePath());
         if (resultCode == -1)
             return;
         String st = MetricsCalculator.printResults();
@@ -355,12 +330,12 @@ public class Main {
             String className = column[1];
             JavaFile jf;
             if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
-                jf = new JavaFile(filePath);
+                jf = new JavaFile(filePath, currentRevision);
                 jf.addClassName(className);
                 registerMetrics(column, jf);
                 Globals.addJavaFile(jf);
             } else {
-                jf = getAlreadyDefinedFile(filePath);
+                jf = getAlreadyDefinedFile(project, filePath);
                 if (Objects.nonNull(jf)) {
                     if (jf.containsClass(className)) {
                         registerMetrics(column, jf);
@@ -376,10 +351,11 @@ public class Main {
     /**
      * Finds java file by its path
      *
+     * @param project the project we are referring to
      * @param filePath the file path
      * @return the java file (JavaFile) whose path matches the given one
      */
-    private static JavaFile getAlreadyDefinedFile(String filePath) {
+    private static JavaFile getAlreadyDefinedFile(Project project, String filePath) {
         for (JavaFile jf : Globals.getJavaFiles())
             if (jf.getPath().equals(filePath))
                 return jf;
@@ -389,12 +365,13 @@ public class Main {
     /**
      * Get Metrics from Metrics Calculator for specific java files (new or modified)
      *
-     * @param projectPath the project root
+     * @param project the project we are referring to
+     * @param currentRevision the revision we are analysing
      * @param jfs         the list of java files
      */
-    private static void setMetrics(String projectPath, Set<JavaFile> jfs) {
+    private static void setMetrics(Project project, Revision currentRevision, Set<JavaFile> jfs) {
         if (jfs.isEmpty()) return;
-        int resultCode = MetricsCalculator.start(projectPath, jfs);
+        int resultCode = MetricsCalculator.start(project.getClonePath(), jfs);
         if (resultCode == -1) return;
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
@@ -406,13 +383,13 @@ public class Main {
                 String className = column[1];
                 JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
-                    jf = new JavaFile(filePath);
+                    jf = new JavaFile(filePath, currentRevision);
                     jf.addClassName(className);
                     registerMetrics(column, jf);
                     jf.calculateInterest();
                     Globals.addJavaFile(jf);
                 } else {
-                    jf = getAlreadyDefinedFile(filePath);
+                    jf = getAlreadyDefinedFile(project, filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
                             registerMetrics(column, jf);
@@ -424,7 +401,8 @@ public class Main {
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     /**
