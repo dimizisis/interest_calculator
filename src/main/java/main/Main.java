@@ -9,6 +9,7 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import data.Endpoints;
 import data.Globals;
 import db.DatabaseConnection;
 import db.InsertToDB;
@@ -182,7 +183,7 @@ public class Main {
         HttpResponse<JsonNode> httpResponse = null;
         Unirest.setTimeouts(0, 0);
         try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/commits-history/shas?url=" + gitURL).asJson();
+            httpResponse = Unirest.get("http://195.251.210.147:8989" + Endpoints.GET_COMMIT_IDS_ENDPOINT + gitURL).asJson();
         } catch (UnirestException e) {
             e.printStackTrace();
         }
@@ -198,7 +199,7 @@ public class Main {
         HttpResponse<JsonNode> httpResponse;
         Unirest.setTimeouts(0, 0);
         try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/project-commit-changes?url=" + gitURL + "&sha=" + sha).asJson();
+            httpResponse = Unirest.get("http://195.251.210.147:8989" + Endpoints.GET_RESPONSE_ENTITIES_AT_COMMIT_ENDPOINT + gitURL + "&sha=" + sha).asJson();
             return new Gson().fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
         } catch (UnirestException e) {
             e.printStackTrace();
@@ -209,10 +210,9 @@ public class Main {
     /**
      * Removes those files that are marked as 'DELETED' (new code's call)
      *
-     * @param project the project we are referring to
      * @param diffEntries the modified java files (new, modified, deleted)
      */
-    private static Set<JavaFile> removeDeletedFiles(Project project, Revision currentRevision, List<DiffEntry> diffEntries) {
+    private static Set<JavaFile> removeDeletedFiles(Revision currentRevision, List<DiffEntry> diffEntries) {
         Set<JavaFile> deletedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
@@ -243,11 +243,10 @@ public class Main {
     /**
      * Find those files that are marked as 'MODIFIED' (new code's call)
      *
-     * @param project the project we are referring to
      * @param diffEntries the modified java files (new, modified, deleted)
      * @return a set containing all the modified files
      */
-    private static Set<JavaFile> findModifiedFiles(Project project, List<DiffEntry> diffEntries) {
+    private static Set<JavaFile> findModifiedFiles(List<DiffEntry> diffEntries) {
         Set<JavaFile> modifiedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
@@ -305,9 +304,9 @@ public class Main {
      * @param diffEntries the list containing the diff entries received.
      */
     private static void setMetrics(Project project, Revision currentRevision, List<DiffEntry> diffEntries) {
-        removeDeletedFiles(project, currentRevision, diffEntries);
+        removeDeletedFiles(currentRevision, diffEntries);
         Set<JavaFile> newFiles = findNewFiles(currentRevision, Objects.requireNonNull(diffEntries));
-        Set<JavaFile> modifiedFiles = findModifiedFiles(project, Objects.requireNonNull(diffEntries));
+        Set<JavaFile> modifiedFiles = findModifiedFiles(Objects.requireNonNull(diffEntries));
         setMetrics(project, currentRevision, newFiles);
         setMetrics(project, currentRevision, modifiedFiles);
     }
@@ -335,7 +334,7 @@ public class Main {
                 registerMetrics(column, jf);
                 Globals.addJavaFile(jf);
             } else {
-                jf = getAlreadyDefinedFile(project, filePath);
+                jf = getAlreadyDefinedFile(filePath);
                 if (Objects.nonNull(jf)) {
                     if (jf.containsClass(className)) {
                         registerMetrics(column, jf);
@@ -351,11 +350,10 @@ public class Main {
     /**
      * Finds java file by its path
      *
-     * @param project the project we are referring to
      * @param filePath the file path
      * @return the java file (JavaFile) whose path matches the given one
      */
-    private static JavaFile getAlreadyDefinedFile(Project project, String filePath) {
+    private static JavaFile getAlreadyDefinedFile(String filePath) {
         for (JavaFile jf : Globals.getJavaFiles())
             if (jf.getPath().equals(filePath))
                 return jf;
@@ -389,7 +387,7 @@ public class Main {
                     jf.calculateInterest();
                     Globals.addJavaFile(jf);
                 } else {
-                    jf = getAlreadyDefinedFile(project, filePath);
+                    jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
                             registerMetrics(column, jf);

@@ -10,7 +10,6 @@ public class JavaFile {
     private Set<String> classes;
     private final QualityMetrics qualityMetrics;
     private final TDInterest interest;
-    private Revision currentRevision;
     private Kappa k;
 
     public JavaFile(String path, Revision revision) {
@@ -18,7 +17,6 @@ public class JavaFile {
         this.classes = new HashSet<>();
         this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
-        this.currentRevision = revision;
         this.setK(new Kappa(revision));
     }
 
@@ -27,7 +25,6 @@ public class JavaFile {
         this.qualityMetrics = qualityMetrics;
         this.interest = new TDInterest(interestInEuros, interestInHours, interestInAvgLOC, avgInterestPerLOC, sumInterestPerLOC);
         this.setK(new Kappa(revision, kappa));
-        this.currentRevision = revision;
         this.setClasses(classes);
     }
 
@@ -166,16 +163,12 @@ public class JavaFile {
                Get difference optimal to actual */
             this.setSumInterestPerLOC(this.calculateInterestPerLoc(JavaFile.this, optimalMetrics));
 
-            /* Calculate the average interest per line of code */
             this.setAvgInterestPerLOC(this.getSumInterestPerLOC() / 10);
 
-            /* Calculate the interest in AVG LOC */
             this.setInterestInAvgLOC(this.getAvgInterestPerLOC() * JavaFile.this.getK().getValue());
 
-            /* Calculate the interest in hours */
             this.setInterestInHours(this.getInterestInAvgLOC() / 25);
 
-            /* Calculate the interest in dollars */
             this.setInterestInEuros(this.getInterestInHours() * this.HOURLY_WAGE);
 
 //            System.out.println("File: " + JavaFile.this.path + " | Interest: " + this.getInterestInEuros());
@@ -252,10 +245,6 @@ public class JavaFile {
          * @return the similarity of these two files (double)
          */
         private Double calculateSimilarityIndex(JavaFile jf2) {
-            int jfClasses = (JavaFile.this.getQualityMetrics().getClassesNum() == 0) ? 1 : JavaFile.this.getQualityMetrics().getClassesNum();
-            double jfComplexity = (JavaFile.this.getQualityMetrics().getComplexity() == 0.0) ? 1.0 : JavaFile.this.getQualityMetrics().getComplexity();
-            double jfFunctions = (JavaFile.this.getQualityMetrics().getWMC() == 0) ? 1 : JavaFile.this.getQualityMetrics().getWMC();
-            int jfLOC = (JavaFile.this.getQualityMetrics().getSIZE1() == 0) ? 1 : JavaFile.this.getQualityMetrics().getSIZE1();
 
             double numOfClassesSimilarityPercentage = 100 - (double) (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) / Math.max(JavaFile.this.getQualityMetrics().getClassesNum(), jf2.getQualityMetrics().getClassesNum()) * 100);
             double complexitySimilarityPercentage = 100 - (Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) / Math.max(JavaFile.this.getQualityMetrics().getComplexity(), jf2.getQualityMetrics().getComplexity()) * 100);
@@ -376,10 +365,6 @@ public class JavaFile {
 
         private Double value;
         private Revision revision;
-
-        public Kappa() {
-            this.setValue(0.0);
-        }
 
         public Kappa(Revision revision) {
             this.revision = revision;
