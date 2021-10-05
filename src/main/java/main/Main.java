@@ -1,11 +1,5 @@
 package main;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.google.gson.Gson;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
@@ -18,123 +12,124 @@ import db.RetrieveFromDB;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
 import infrastructure.newcode.PrincipalResponseEntity;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import metricsCalculator.calculator.MetricsCalculator;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
-import static db.RetrieveFromDB.*;
-
 public class Main {
-
     public static void main(String[] args) throws Exception {
-
-        Globals.setProjectURL(args[0]);
-        Globals.setProjectOwner();
-        Globals.setProjectRepo();
-        Globals.setProjectPath(args[1]);
-        Globals.setRevisionCount(1);
-        System.out.println("Receiving all commit ids...");
-        List<String> diffCommitIds = new ArrayList<>();
-        List<String> commitIds = getCommitIds(Globals.getProjectURL());
-        if (Objects.isNull(commitIds))
-            return;
-        Collections.reverse(commitIds);
-        int start = 0;
-        boolean existsInDb = false;
-        try {
-            existsInDb = RetrieveFromDB.ProjectExistsInDatabase();
-            if (existsInDb) {
-                List<String> existingCommitIds = getExistingCommitIds();
-                diffCommitIds = findDifferenceInCommitIds(commitIds, existingCommitIds);
-                if (!diffCommitIds.isEmpty()) {
-                    Globals.setRevisionCount(getLastVersionNum() + 1);
-                } else
-                    return;
-            }
-        } catch (Exception ignored) {
-        }
-
-        try {
-            deleteSourceCode(new File(Globals.getProjectPath()));
-        } catch (Exception ignored) {}
-
-        System.out.printf("Cloning %s...\n", args[0]);
-        cloneRepository();
-
-        if (Objects.isNull(Globals.getGit()))
-            return;
-
-        if (!existsInDb || diffCommitIds.containsAll(commitIds)) {
-            start = 1;
-            Globals.setCurrentSha(Objects.requireNonNull(commitIds.get(0)));
-            checkout(commitIds.get(0), Globals.getRevisionCount());
-            System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
-            setMetrics(Globals.getProjectPath());
-            System.out.println("Calculated metrics for all files from first commit!");
-            insertFirstData(args);
-            Globals.setRevisionCount(Globals.getRevisionCount() + 1);
-            DatabaseConnection.getConnection().commit();
-        } else {
-            retrieveJavaFiles();
-            commitIds = new ArrayList<>(diffCommitIds);
-        }
-
-        for (int i = start; i < commitIds.size(); ++i) {
-            Globals.setCurrentSha(commitIds.get(i));
-            checkout(Globals.getCurrentSha(), Globals.getRevisionCount());
-            System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
+        FileInputStream file = new FileInputStream(args[1]);
+        XSSFWorkbook xSSFWorkbook = new XSSFWorkbook(file);
+        Sheet sheet = xSSFWorkbook.getSheetAt(0);
+        for (Row row : sheet) {
+            Globals.setProjectURL("https://github.com/apache/" + row.getCell(0).getStringCellValue());
+            Globals.setProjectOwner();
+            Globals.setProjectRepo();
+            Globals.setProjectPath(args[0] + "/" + args[0] + "-" + Globals.getProjectOwner());
+            Globals.setRevisionCount(1);
+            System.out.println("Receiving all commit ids...");
+            List<String> diffCommitIds = new ArrayList<>();
+            List<String> commitIds = getCommitIds(row.getCell(1).getStringCellValue());
+            System.out.println("Total commits: " + commitIds.size());
+            if (commitIds.isEmpty())
+                continue;
+            int start = 0;
+            boolean existsInDb = false;
             try {
-                PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(Globals.getProjectURL(), Globals.getCurrentSha());
-                if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
-                    InsertToDB.insertEmpty();
-                    System.out.println("Calculated metrics for all files!");
-                    continue;
+                existsInDb = RetrieveFromDB.ProjectExistsInDatabase();
+                if (existsInDb) {
+                    List<String> existingCommitIds = RetrieveFromDB.getExistingCommitIds();
+                    diffCommitIds = findDifferenceInCommitIds(commitIds, existingCommitIds);
+                    if (!diffCommitIds.isEmpty()) {
+                        Globals.setRevisionCount(RetrieveFromDB.getLastVersionNum() + 1);
+                    } else {
+                        continue;
+                    }
                 }
-                System.out.println("Analyzing new/modified commit files...");
-                setMetrics(responseEntities[0].getDiffEntries());
-                System.out.println("Calculated metrics for all files!");
-                insertData(args);
-            } catch (Exception ignored) {}
-            Globals.setRevisionCount(Globals.getRevisionCount() + 1);
-            DatabaseConnection.getConnection().commit();
+            } catch (Exception exception) {}
+            try {
+                deleteSourceCode(new File(Globals.getProjectPath()));
+            } catch (Exception exception) {}
+            System.out.printf("Cloning %s...\n", Globals.getProjectURL());
+            cloneRepository();
+            if (Objects.isNull(Globals.getGit()))
+                return;
+            if (!existsInDb || diffCommitIds.containsAll(commitIds)) {
+                start = 1;
+                Globals.setCurrentSha(Objects.requireNonNull(commitIds.get(0)));
+                checkout(commitIds.get(0), Globals.getRevisionCount());
+                System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
+                setMetrics(Globals.getProjectPath());
+                System.out.println("Calculated metrics for all files from first commit!");
+                insertFirstData(args);
+                Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+                DatabaseConnection.getConnection().commit();
+            } else {
+                RetrieveFromDB.retrieveJavaFiles();
+                commitIds = new ArrayList<>(diffCommitIds);
+            }
+            for (int i = start; i < commitIds.size(); ++i) {
+                if (i == commitIds.size()-2)
+                    break;
+                Globals.setCurrentSha(commitIds.get(i));
+                checkout(Globals.getCurrentSha(), Globals.getRevisionCount());
+                System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
+                try {
+                    PrincipalResponseEntity[] responseEntities = getResponseEntitiesBetweenCommits(Globals.getProjectURL(), Globals.getCurrentSha(), commitIds.get(i+1));
+                    if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
+                        InsertToDB.insertEmpty();
+                        System.out.println("Calculated metrics for all files!");
+                    } else {
+                        System.out.println("Analyzing new/modified commit files...");
+                        setMetrics(responseEntities[0].getDiffEntries());
+                        System.out.println("Calculated metrics for all files!");
+                        insertData(args);
+                        Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+                        DatabaseConnection.getConnection().commit();
+                    }
+                } catch (Exception exception) {
+                    Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+                    DatabaseConnection.getConnection().commit();
+                }
+            }
+            System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount() - 1);
         }
-        if (args.length == 2)
-            DatabaseConnection.closeConnection(true);
-        else
-            writeCSV(args[2]);
-        System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount() - 1);
+        DatabaseConnection.closeConnection(true);
     }
 
-    /**
-     * Inserts the data of the first revision (in list).
-     *
-     * @param args the string array containing the arguments that the user provided
-     */
     private static void insertFirstData(String[] args) {
         if (args.length == 2) {
             InsertToDB.insertProjectToDatabase();
-
-            if (Globals.getJavaFiles().size() == 0)
+            if (Globals.getJavaFiles().size() == 0) {
                 InsertToDB.insertEmpty();
-            else {
+            } else {
                 Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
                 Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
             }
-        } else
+        } else {
             Globals.getJavaFiles().forEach(Globals::append);
+        }
     }
 
-    /**
-     * Inserts the data of some revision in database or in a stringbuilder.
-     *
-     * @param args the string array containing the arguments that the user provided
-     */
     private static void insertData(String[] args) {
         if (args.length == 2) {
-            if (Globals.getJavaFiles().size() == 0)
+            if (Globals.getJavaFiles().size() == 0) {
                 InsertToDB.insertEmpty();
-            else {
+            } else {
                 Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
                 Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
             }
@@ -144,13 +139,6 @@ public class Main {
         }
     }
 
-    /**
-     * Performs a set subtraction between the received commits and the existing ones (in database).
-     *
-     * @param receivedCommitIds the list containing the received commits
-     * @param existingCommitIds the list containing the existing commits
-     * @return the result of the subtraction
-     */
     private static List<String> findDifferenceInCommitIds(List<String> receivedCommitIds, List<String> existingCommitIds) {
         List<String> diffCommitIds = new ArrayList<>(receivedCommitIds);
         if (Objects.nonNull(existingCommitIds))
@@ -158,29 +146,15 @@ public class Main {
         return diffCommitIds;
     }
 
-    /**
-     * Writes a CSV file containing all the information needed.
-     *
-     * @param path the path of the output file.
-     */
     private static void writeCSV(String path) throws IOException {
-
         FileWriter csvWriter = new FileWriter(path);
-
         for (String header : Globals.getOutputHeaders())
             csvWriter.append(header);
         csvWriter.append(Globals.getOutput());
-
         csvWriter.flush();
         csvWriter.close();
     }
 
-    /**
-     * Deletes source code (if exists) before the analysis
-     * procedure.
-     *
-     * @param file the directory that the repository will be cloned
-     */
     public static void deleteSourceCode(File file) throws NullPointerException {
         if (file.isDirectory()) {
             /* If directory is empty, then delete it */
@@ -207,44 +181,21 @@ public class Main {
         }
     }
 
-    /**
-     * Gets all commit ids for a specific git repo.
-     *
-     * @param gitURL the url of git repository
-     */
-    private static List<String> getCommitIds(String gitURL) {
-        HttpResponse<JsonNode> httpResponse = null;
-        Unirest.setTimeouts(0, 0);
-        try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/commits-history/shas?url=" + gitURL).asJson();
-        } catch (UnirestException e) {
-            e.printStackTrace();
-        }
-        return Objects.nonNull(httpResponse) ? Arrays.asList(new Gson().fromJson(httpResponse.getBody().toString(), String[].class)) : null;
+    private static List<String> getCommitIds(String commits) {
+        return Arrays.asList(commits.split(","));
     }
 
-    /**
-     * Gets all commit ids for a specific git repo.
-     *
-     * @param sha the commit id
-     */
-    private static PrincipalResponseEntity[] getResponseEntitiesAtCommit(String gitURL, String sha) {
-        HttpResponse<JsonNode> httpResponse;
-        Unirest.setTimeouts(0, 0);
+    private static PrincipalResponseEntity[] getResponseEntitiesBetweenCommits(String gitURL, String startSha, String endSha) {
+        Unirest.setTimeouts(0L, 0L);
         try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/project-commit-changes?url=" + gitURL + "&sha=" + sha).asJson();
-            return new Gson().fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
+            HttpResponse<JsonNode> httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/project-commit-changes?url=" + gitURL + "&startSha=" + startSha + "&endSha=" + endSha).asJson();
+            return (new Gson()).fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
         } catch (UnirestException e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
-    /**
-     * Removes those files that are marked as 'DELETED' (new code's call)
-     *
-     * @param diffEntries the modified java files (new, modified, deleted)
-     */
     private static Set<JavaFile> removeDeletedFiles(List<DiffEntry> diffEntries) {
         Set<JavaFile> deletedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
@@ -257,12 +208,6 @@ public class Main {
         return deletedFiles;
     }
 
-    /**
-     * Find those files that are marked as 'NEW' (new code's call)
-     *
-     * @param diffEntries the modified java files (new, modified, deleted)
-     * @return a set containing all the new files
-     */
     private static Set<JavaFile> findNewFiles(List<DiffEntry> diffEntries) {
         Set<JavaFile> newFiles = ConcurrentHashMap.newKeySet();
         diffEntries
@@ -273,12 +218,6 @@ public class Main {
         return newFiles;
     }
 
-    /**
-     * Find those files that are marked as 'MODIFIED' (new code's call)
-     *
-     * @param diffEntries the modified java files (new, modified, deleted)
-     * @return a set containing all the modified files
-     */
     private static Set<JavaFile> findModifiedFiles(List<DiffEntry> diffEntries) {
         Set<JavaFile> modifiedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
@@ -295,9 +234,6 @@ public class Main {
         return modifiedFiles;
     }
 
-    /**
-     * Clones a repo to a specified path.
-     */
     private static void cloneRepository() {
         try {
             Globals.setGit(Git.cloneRepository()
@@ -309,11 +245,6 @@ public class Main {
         }
     }
 
-    /**
-     * Checkouts to specified commitId (SHA)
-     *
-     * @param commitId the SHA we are checking out to
-     */
     private static void checkout(String commitId, int versionNum) throws GitAPIException {
         try {
             Globals.getGit().checkout().setCreateBranch(true).setName("version" + versionNum).setStartPoint(commitId).call();
@@ -324,11 +255,6 @@ public class Main {
         }
     }
 
-    /**
-     * Sets the metrics of new and modified files.
-     *
-     * @param diffEntries the list containing the diff entries received.
-     */
     private static void setMetrics(List<DiffEntry> diffEntries) {
         removeDeletedFiles(diffEntries);
         Set<JavaFile> newFiles = findNewFiles(Objects.requireNonNull(diffEntries));
@@ -337,11 +263,6 @@ public class Main {
         setMetrics(Globals.getProjectPath(), modifiedFiles);
     }
 
-    /**
-     * Get Metrics from Metrics Calculator for every java file (initial calculation)
-     *
-     * @param projectPath the project root
-     */
     private static void setMetrics(String projectPath) {
         int resultCode = MetricsCalculator.start(projectPath);
         if (resultCode == -1)
@@ -349,70 +270,58 @@ public class Main {
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");
-        for (int i = 1; i < s.length; ++i) {
+        for (int i = 1; i < s.length; i++) {
             String[] column = s[i].split(";");
             String filePath = column[0];
             String className = column[1];
-            JavaFile jf;
             if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
-                jf = new JavaFile(filePath);
+                JavaFile jf = new JavaFile(filePath);
                 jf.addClassName(className);
                 registerMetrics(column, jf);
                 Globals.addJavaFile(jf);
             } else {
-                jf = getAlreadyDefinedFile(filePath);
-                if (Objects.nonNull(jf)) {
+                JavaFile jf = getAlreadyDefinedFile(filePath);
+                if (Objects.nonNull(jf))
                     if (jf.containsClass(className)) {
                         registerMetrics(column, jf);
                     } else {
                         jf.addClassName(className);
                         appendMetrics(column, jf);
                     }
-                }
             }
         }
     }
 
-    /**
-     * Finds java file by its path
-     *
-     * @param filePath the file path
-     * @return the java file (JavaFile) whose path matches the given one
-     */
     private static JavaFile getAlreadyDefinedFile(String filePath) {
-        for (JavaFile jf : Globals.getJavaFiles())
+        for (JavaFile jf : Globals.getJavaFiles()) {
             if (jf.getPath().equals(filePath))
                 return jf;
+        }
         return null;
     }
 
-    /**
-     * Get Metrics from Metrics Calculator for specific java files (new or modified)
-     *
-     * @param projectPath the project root
-     * @param jfs         the list of java files
-     */
     private static void setMetrics(String projectPath, Set<JavaFile> jfs) {
-        if (jfs.isEmpty()) return;
+        if (jfs.isEmpty())
+            return;
         int resultCode = MetricsCalculator.start(projectPath, jfs);
-        if (resultCode == -1) return;
+        if (resultCode == -1)
+            return;
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");
         try {
-            for (int i = 1; i < s.length; ++i) {
+            for (int i = 1; i < s.length; i++) {
                 String[] column = s[i].split(";");
                 String filePath = column[0];
                 String className = column[1];
-                JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
-                    jf = new JavaFile(filePath);
+                    JavaFile jf = new JavaFile(filePath);
                     jf.addClassName(className);
                     registerMetrics(column, jf);
                     jf.calculateInterest();
                     Globals.addJavaFile(jf);
                 } else {
-                    jf = getAlreadyDefinedFile(filePath);
+                    JavaFile jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
                             registerMetrics(column, jf);
@@ -424,15 +333,9 @@ public class Main {
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception exception) {}
     }
 
-    /**
-     * Register Metrics to specified java file
-     *
-     * @param calcEntries entries taken from MetricsCalculator's results
-     * @param jf          the java file we are registering metrics to
-     */
     private static void registerMetrics(String[] calcEntries, JavaFile jf) {
         jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
@@ -450,20 +353,14 @@ public class Main {
         jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
     }
 
-    /**
-     * Register Metrics to specified java file
-     *
-     * @param calcEntries entries taken from MetricsCalculator's results
-     * @param jf          the java file we are registering metrics to
-     */
     private static void appendMetrics(String[] calcEntries, JavaFile jf) {
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
         jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
         jf.getQualityMetrics().setRFC(jf.getQualityMetrics().getRFC() + Double.parseDouble(calcEntries[5]));
-        if (Double.parseDouble(calcEntries[6]) > 0)
+        if (Double.parseDouble(calcEntries[6]) > 0.0D)
             jf.getQualityMetrics().setLCOM(jf.getQualityMetrics().getLCOM() + Double.parseDouble(calcEntries[6]));
-        if (Double.parseDouble(calcEntries[7]) > 0)
+        if (Double.parseDouble(calcEntries[7]) > 0.0D)
             jf.getQualityMetrics().setComplexity(jf.getQualityMetrics().getComplexity() + Double.parseDouble(calcEntries[7]));
         jf.getQualityMetrics().setNOM(jf.getQualityMetrics().getNOM() + Double.parseDouble(calcEntries[8]));
         jf.getQualityMetrics().setMPC(jf.getQualityMetrics().getMPC() + Double.parseDouble(calcEntries[9]));
