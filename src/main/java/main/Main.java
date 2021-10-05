@@ -12,16 +12,16 @@ import db.RetrieveFromDB;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
 import infrastructure.newcode.PrincipalResponseEntity;
+
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
 import metricsCalculator.calculator.MetricsCalculator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -60,10 +60,12 @@ public class Main {
                         continue;
                     }
                 }
-            } catch (Exception exception) {}
+            } catch (Exception exception) {
+            }
             try {
                 deleteSourceCode(new File(Globals.getProjectPath()));
-            } catch (Exception exception) {}
+            } catch (Exception exception) {
+            }
             System.out.printf("Cloning %s...\n", Globals.getProjectURL());
             cloneRepository();
             if (Objects.isNull(Globals.getGit()))
@@ -75,7 +77,7 @@ public class Main {
                 System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
                 setMetrics(Globals.getProjectPath());
                 System.out.println("Calculated metrics for all files from first commit!");
-                insertFirstData(args);
+                insertFirstData();
                 Globals.setRevisionCount(Globals.getRevisionCount() + 1);
                 DatabaseConnection.getConnection().commit();
             } else {
@@ -83,13 +85,13 @@ public class Main {
                 commitIds = new ArrayList<>(diffCommitIds);
             }
             for (int i = start; i < commitIds.size(); ++i) {
-                if (i == commitIds.size()-2)
+                if (i == commitIds.size() - 2)
                     break;
                 Globals.setCurrentSha(commitIds.get(i));
                 checkout(Globals.getCurrentSha(), Globals.getRevisionCount());
                 System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
                 try {
-                    PrincipalResponseEntity[] responseEntities = getResponseEntitiesBetweenCommits(Globals.getProjectURL(), Globals.getCurrentSha(), commitIds.get(i+1));
+                    PrincipalResponseEntity[] responseEntities = getResponseEntitiesBetweenCommits(Globals.getProjectURL(), Globals.getCurrentSha(), commitIds.get(i + 1));
                     if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
                         InsertToDB.insertEmpty();
                         System.out.println("Calculated metrics for all files!");
@@ -111,32 +113,24 @@ public class Main {
         DatabaseConnection.closeConnection(true);
     }
 
-    private static void insertFirstData(String[] args) {
-        if (args.length == 2) {
-            InsertToDB.insertProjectToDatabase();
-            if (Globals.getJavaFiles().size() == 0) {
-                InsertToDB.insertEmpty();
-            } else {
-                Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
-                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
-            }
+    private static void insertFirstData() {
+        InsertToDB.insertProjectToDatabase();
+        if (Globals.getJavaFiles().size() == 0) {
+            InsertToDB.insertEmpty();
         } else {
-            Globals.getJavaFiles().forEach(Globals::append);
+            Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
+            Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
         }
     }
 
     private static void insertData(String[] args) {
-        if (args.length == 2) {
-            if (Globals.getJavaFiles().size() == 0) {
-                InsertToDB.insertEmpty();
-            } else {
-                Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
-                Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
-            }
+        if (Globals.getJavaFiles().size() == 0) {
+            InsertToDB.insertEmpty();
         } else {
-            Globals.getJavaFiles().forEach(Globals::append);
-            Globals.compound();
+            Globals.getJavaFiles().forEach(InsertToDB::insertFileToDatabase);
+            Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
         }
+
     }
 
     private static List<String> findDifferenceInCommitIds(List<String> receivedCommitIds, List<String> existingCommitIds) {
@@ -144,15 +138,6 @@ public class Main {
         if (Objects.nonNull(existingCommitIds))
             diffCommitIds.removeAll(existingCommitIds);
         return diffCommitIds;
-    }
-
-    private static void writeCSV(String path) throws IOException {
-        FileWriter csvWriter = new FileWriter(path);
-        for (String header : Globals.getOutputHeaders())
-            csvWriter.append(header);
-        csvWriter.append(Globals.getOutput());
-        csvWriter.flush();
-        csvWriter.close();
     }
 
     public static void deleteSourceCode(File file) throws NullPointerException {
@@ -333,7 +318,8 @@ public class Main {
                     }
                 }
             }
-        } catch (Exception exception) {}
+        } catch (Exception exception) {
+        }
     }
 
     private static void registerMetrics(String[] calcEntries, JavaFile jf) {
