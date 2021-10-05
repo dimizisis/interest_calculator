@@ -99,7 +99,7 @@ public class Main {
                         System.out.println("Analyzing new/modified commit files...");
                         setMetrics(responseEntities[0].getDiffEntries());
                         System.out.println("Calculated metrics for all files!");
-                        insertData(args);
+                        insertData();
                         Globals.setRevisionCount(Globals.getRevisionCount() + 1);
                         DatabaseConnection.getConnection().commit();
                     }
@@ -123,7 +123,7 @@ public class Main {
         }
     }
 
-    private static void insertData(String[] args) {
+    private static void insertData() {
         if (Globals.getJavaFiles().size() == 0) {
             InsertToDB.insertEmpty();
         } else {
