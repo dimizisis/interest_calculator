@@ -1,5 +1,9 @@
 package db;
 
+import org.ini4j.Wini;
+
+import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -9,10 +13,20 @@ import java.util.logging.Logger;
 
 public class DatabaseConnection {
 
-    private static String databaseDriver = "org.postgresql.Driver";
-    private static String databaseUrl = "jdbc:postgresql://195.251.210.147:5544/nikosdb";
-    private static String databaseUsername = "sonar";
-    private static String databasePassword = "d74c6ce75d36edf1c36fe65f9cfd9d89";
+    private static Wini ini;
+
+    static {
+        try {
+            ini = new Wini(new File(Objects.requireNonNull(DatabaseConnection.class.getClassLoader().getResource("db.ini")).getFile()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static String databaseDriver = ini.get("config", "driver");
+    private static String databaseUrl = ini.get("config", "url");
+    private static String databaseUsername = ini.get("creds", "user");
+    private static String databasePassword = ini.get("creds", "pass");
 
     private static Connection connection = null;
 
