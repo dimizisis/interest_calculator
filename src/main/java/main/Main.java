@@ -97,7 +97,10 @@ public class Main {
             try {
                 PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(project.getUrl(), currentRevision.getSha());
                 if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
-                    InsertToDB.insertEmpty(project, currentRevision);
+                    if (Globals.getJavaFiles().isEmpty())
+                        InsertToDB.insertEmpty(project, currentRevision);
+                    else
+                        insertData(project, currentRevision);
                     System.out.println("Calculated metrics for all files!");
                     continue;
                 }
