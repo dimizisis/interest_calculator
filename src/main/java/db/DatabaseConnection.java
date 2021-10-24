@@ -1,32 +1,34 @@
 package db;
 
-import org.ini4j.Wini;
-
-import java.io.File;
-import java.io.IOException;
+import java.io.FileInputStream;
+import java.nio.file.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class DatabaseConnection {
-
-    private static Wini ini;
+    private static final Properties properties;
 
     static {
+        properties = new Properties();
         try {
-            ini = new Wini(new File(Objects.requireNonNull(DatabaseConnection.class.getClassLoader().getResource("db.ini")).getFile()));
-        } catch (IOException e) {
+            Path temp = Files.createTempFile("db", ".properties");
+            Files.copy(Objects.requireNonNull(DatabaseConnection.class.getClassLoader().getResourceAsStream("database.properties")), temp, StandardCopyOption.REPLACE_EXISTING);
+            FileInputStream input = new FileInputStream(temp.toFile());
+            properties.load(input);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static String databaseDriver = ini.get("config", "driver");
-    private static String databaseUrl = ini.get("config", "url");
-    private static String databaseUsername = ini.get("creds", "user");
-    private static String databasePassword = ini.get("creds", "pass");
+    private static String databaseDriver = properties.getProperty("driver");
+    private static String databaseUrl = properties.getProperty("url");
+    private static String databaseUsername = properties.getProperty("user");
+    private static String databasePassword = properties.getProperty("pass");
 
     private static Connection connection = null;
 
