@@ -11,7 +11,6 @@ import db.InsertToDB;
 import db.RetrieveFromDB;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
-import infrastructure.newcode.PrincipalResponseEntity;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,7 +38,7 @@ public class Main {
             Globals.setProjectURL("https://github.com/apache/" + row.getCell(0).getStringCellValue());
             Globals.setProjectOwner();
             Globals.setProjectRepo();
-            Globals.setProjectPath(args[0] + "/" + args[0] + "-" + Globals.getProjectOwner());
+            Globals.setProjectPath(args[0] + "/" + "apache" + "_" + Globals.getProjectRepo());
             Globals.setRevisionCount(1);
             System.out.println("Receiving all commit ids...");
             List<String> diffCommitIds = new ArrayList<>();
@@ -78,35 +77,35 @@ public class Main {
                 setMetrics(Globals.getProjectPath());
                 System.out.println("Calculated metrics for all files from first commit!");
                 insertFirstData();
-                Globals.setRevisionCount(Globals.getRevisionCount() + 1);
                 DatabaseConnection.getConnection().commit();
+                Globals.setRevisionCount(Globals.getRevisionCount() + 1);
             } else {
                 RetrieveFromDB.retrieveJavaFiles();
                 commitIds = new ArrayList<>(diffCommitIds);
             }
             for (int i = start; i < commitIds.size(); ++i) {
-                if (i == commitIds.size() - 2)
-                    break;
                 Globals.setCurrentSha(commitIds.get(i));
                 checkout(Globals.getCurrentSha(), Globals.getRevisionCount());
                 System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
                 try {
-                    PrincipalResponseEntity[] responseEntities = getResponseEntitiesBetweenCommits(Globals.getProjectURL(), Globals.getCurrentSha(), commitIds.get(i + 1));
-                    if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
-                        InsertToDB.insertEmpty();
+                    DiffEntry[] diffEntries = getResponseEntitiesBetweenCommits(Globals.getProjectURL(), commitIds.get(i - 1), commitIds.get(i));
+                    if (Objects.isNull(diffEntries) || diffEntries.length == 0) {
+                        if (Globals.getJavaFiles().isEmpty())
+                            InsertToDB.insertEmpty();
+                        else
+                            insertData();
                         System.out.println("Calculated metrics for all files!");
                     } else {
                         System.out.println("Analyzing new/modified commit files...");
-                        setMetrics(responseEntities[0].getDiffEntries());
+                        setMetrics(Arrays.asList(diffEntries));
                         System.out.println("Calculated metrics for all files!");
                         insertData();
-                        Globals.setRevisionCount(Globals.getRevisionCount() + 1);
-                        DatabaseConnection.getConnection().commit();
                     }
+                    DatabaseConnection.getConnection().commit();
                 } catch (Exception exception) {
-                    Globals.setRevisionCount(Globals.getRevisionCount() + 1);
                     DatabaseConnection.getConnection().commit();
                 }
+                Globals.setRevisionCount(Globals.getRevisionCount() + 1);
             }
             System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount() - 1);
         }
@@ -170,11 +169,11 @@ public class Main {
         return Arrays.asList(commits.split(","));
     }
 
-    private static PrincipalResponseEntity[] getResponseEntitiesBetweenCommits(String gitURL, String startSha, String endSha) {
+    private static DiffEntry[] getResponseEntitiesBetweenCommits(String gitURL, String startSha, String endSha) {
         Unirest.setTimeouts(0L, 0L);
         try {
-            HttpResponse<JsonNode> httpResponse = Unirest.get("http://195.251.210.147:8989/api/internal/project-commit-changes?url=" + gitURL + "&startSha=" + startSha + "&endSha=" + endSha).asJson();
-            return (new Gson()).fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
+            HttpResponse<JsonNode> httpResponse = Unirest.get("http://195.251.210.147:4114/api/nikolaidis/diff-between-commits?url=" + gitURL + "&parent=" + startSha + "&commit=" + endSha).asJson();
+            return (new Gson()).fromJson(httpResponse.getBody().toString(), DiffEntry[].class);
         } catch (UnirestException e) {
             e.printStackTrace();
             return null;
@@ -197,7 +196,7 @@ public class Main {
         Set<JavaFile> newFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
-                .filter(diffEntry -> diffEntry.getChangeType().equals("ADD"))
+                .filter(diffEntry -> diffEntry.getChangeType().equals("ADD") || diffEntry.getChangeType().equals("COPY"))
                 .filter(diffEntry -> diffEntry.getNewFilePath().toLowerCase().endsWith(".java"))
                 .forEach(diffEntry -> newFiles.add(new JavaFile(diffEntry.getNewFilePath())));
         return newFiles;
@@ -217,6 +216,22 @@ public class Main {
                     }
                 });
         return modifiedFiles;
+    }
+
+    private static Set<JavaFile> findRenamedFiles(List<DiffEntry> diffEntries) {
+        Set<JavaFile> renamedFiles = ConcurrentHashMap.newKeySet();
+        diffEntries
+                .stream()
+                .filter(diffEntry -> diffEntry.getChangeType().equals("RENAME"))
+                .forEach(diffEntry -> {
+                    for (JavaFile javaFile : Globals.getJavaFiles()) {
+                        if (javaFile.getPath().endsWith(diffEntry.getOldFilePath())) {
+                            javaFile.setPath(javaFile.getPath().replace(diffEntry.getOldFilePath(), diffEntry.getNewFilePath()));
+                            renamedFiles.add(javaFile);
+                        }
+                    }
+                });
+        return renamedFiles;
     }
 
     private static void cloneRepository() {
@@ -241,6 +256,7 @@ public class Main {
     }
 
     private static void setMetrics(List<DiffEntry> diffEntries) {
+        findRenamedFiles(diffEntries);
         removeDeletedFiles(diffEntries);
         Set<JavaFile> newFiles = findNewFiles(Objects.requireNonNull(diffEntries));
         Set<JavaFile> modifiedFiles = findModifiedFiles(Objects.requireNonNull(diffEntries));
