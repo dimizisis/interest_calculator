@@ -1,18 +1,10 @@
 package db;
 
-import org.ini4j.Wini;
-
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Level;
