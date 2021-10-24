@@ -8,7 +8,6 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import data.Globals;
 import db.DatabaseConnection;
 import db.InsertToDB;
-import db.RetrieveFromDB;
 import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
 
@@ -41,26 +40,10 @@ public class Main {
             Globals.setProjectPath(args[0] + "/" + "apache" + "_" + Globals.getProjectRepo());
             Globals.setRevisionCount(1);
             System.out.println("Receiving all commit ids...");
-            List<String> diffCommitIds = new ArrayList<>();
             List<String> commitIds = getCommitIds(row.getCell(1).getStringCellValue());
             System.out.println("Total commits: " + commitIds.size());
             if (commitIds.isEmpty())
                 continue;
-            int start = 0;
-            boolean existsInDb = false;
-            try {
-                existsInDb = RetrieveFromDB.ProjectExistsInDatabase();
-                if (existsInDb) {
-                    List<String> existingCommitIds = RetrieveFromDB.getExistingCommitIds();
-                    diffCommitIds = findDifferenceInCommitIds(commitIds, existingCommitIds);
-                    if (!diffCommitIds.isEmpty()) {
-                        Globals.setRevisionCount(RetrieveFromDB.getLastVersionNum() + 1);
-                    } else {
-                        continue;
-                    }
-                }
-            } catch (Exception exception) {
-            }
             try {
                 deleteSourceCode(new File(Globals.getProjectPath()));
             } catch (Exception exception) {
@@ -69,21 +52,15 @@ public class Main {
             cloneRepository();
             if (Objects.isNull(Globals.getGit()))
                 return;
-            if (!existsInDb || diffCommitIds.containsAll(commitIds)) {
-                start = 1;
-                Globals.setCurrentSha(Objects.requireNonNull(commitIds.get(0)));
-                checkout(commitIds.get(0), Globals.getRevisionCount());
-                System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
-                setMetrics(Globals.getProjectPath());
-                System.out.println("Calculated metrics for all files from first commit!");
-                insertFirstData();
-                DatabaseConnection.getConnection().commit();
-                Globals.setRevisionCount(Globals.getRevisionCount() + 1);
-            } else {
-                RetrieveFromDB.retrieveJavaFiles();
-                commitIds = new ArrayList<>(diffCommitIds);
-            }
-            for (int i = start; i < commitIds.size(); ++i) {
+            Globals.setCurrentSha(Objects.requireNonNull(commitIds.get(0)));
+            checkout(commitIds.get(0), Globals.getRevisionCount());
+            System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
+            setMetrics(Globals.getProjectPath());
+            System.out.println("Calculated metrics for all files from first commit!");
+            insertFirstData();
+            DatabaseConnection.getConnection().commit();
+            Globals.setRevisionCount(Globals.getRevisionCount() + 1);
+            for (int i = 1; i < commitIds.size(); ++i) {
                 Globals.setCurrentSha(commitIds.get(i));
                 checkout(Globals.getCurrentSha(), Globals.getRevisionCount());
                 System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
