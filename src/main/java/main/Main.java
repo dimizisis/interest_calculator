@@ -13,7 +13,6 @@ import infrastructure.newcode.DiffEntry;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -85,6 +84,7 @@ public class Main {
                 Globals.setRevisionCount(Globals.getRevisionCount() + 1);
             }
             System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount() - 1);
+            Globals.getJavaFiles().clear();
         }
         DatabaseConnection.closeConnection(true);
     }
@@ -107,13 +107,6 @@ public class Main {
             Globals.getJavaFiles().forEach(InsertToDB::insertMetricsToDatabase);
         }
 
-    }
-
-    private static List<String> findDifferenceInCommitIds(List<String> receivedCommitIds, List<String> existingCommitIds) {
-        List<String> diffCommitIds = new ArrayList<>(receivedCommitIds);
-        if (Objects.nonNull(existingCommitIds))
-            diffCommitIds.removeAll(existingCommitIds);
-        return diffCommitIds;
     }
 
     public static void deleteSourceCode(File file) throws NullPointerException {

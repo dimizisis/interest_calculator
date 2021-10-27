@@ -43,7 +43,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
             this.myFile = cu.getStorage().get().getPath().toString().replace("\\", "/").replace(MetricsCalculator.getFullPathOfProject(), "").substring(1);
             this.myClassName = jc.resolve().getQualifiedName();
             if (jc.isNestedType())
-                this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)","!");
+                this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)", "!");
         } catch (Exception e) {
             return;
         }
@@ -99,7 +99,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                     .filter(this::withinAnalysisBounds).forEach(superClassName -> {
                         this.classMetricsContainer.getMetrics(superClassName).incNoc();
                         registerCoupling(superClassName);
-            });
+                    });
         calculateMetrics(javaClass);
     }
 
@@ -423,16 +423,17 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *
      * @param method the method we are referring to
      */
-    private void investigateInvocation(MethodDeclaration method){
+    private void investigateInvocation(MethodDeclaration method) {
         try {
-            try {
-                method.findAll(MethodCallExpr.class)
-                        .forEach(methodCall -> {
-                            ResolvedMethodDeclaration resolvedMethodDeclaration = methodCall.resolve();
-                            registerMethodInvocation(resolvedMethodDeclaration.getQualifiedName().substring(0, resolvedMethodDeclaration.getQualifiedName().lastIndexOf(".")), resolvedMethodDeclaration.getQualifiedSignature());
-                        });
-            } catch (StackOverflowError st) {}
-        } catch (Exception ignored){}
+            for (MethodCallExpr methodCallExpr : method.findAll(MethodCallExpr.class)) {
+                try {
+                    ResolvedMethodDeclaration resolvedMethodDeclaration = methodCallExpr.resolve();
+                    registerMethodInvocation(resolvedMethodDeclaration.getQualifiedName().substring(0, resolvedMethodDeclaration.getQualifiedName().lastIndexOf(".")), resolvedMethodDeclaration.getQualifiedSignature());
+                } catch (NoClassDefFoundError ignored) {
+                }
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     /**
@@ -442,8 +443,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *                  the class we are referring to
      */
     private void registerCoupling(String className) {
-        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.')+1) : className.substring(className.lastIndexOf('.'));
-        String simpleMyClassName = this.myClassName.contains(".") ? this.myClassName.substring(this.myClassName.lastIndexOf('.')+1) : this.myClassName.substring(this.myClassName.lastIndexOf('.'));
+        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.') + 1) : className.substring(className.lastIndexOf('.'));
+        String simpleMyClassName = this.myClassName.contains(".") ? this.myClassName.substring(this.myClassName.lastIndexOf('.') + 1) : this.myClassName.substring(this.myClassName.lastIndexOf('.'));
 
         if (this.compilationUnit.getClassByName(simpleClassName).isPresent() && this.compilationUnit.getClassByName(simpleMyClassName).isPresent()) {
             ClassOrInterfaceDeclaration cl = this.compilationUnit.getClassByName(simpleClassName).get();
