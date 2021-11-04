@@ -36,10 +36,15 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        if (args.length < 2)
+        if (args.length < 5)
             System.exit(-2);
 
-        Project project = new Project(args[0], args[1]);
+        DatabaseConnection.setDatabaseDriver(args[1]);
+        DatabaseConnection.setDatabaseUrl(args[2]);
+        DatabaseConnection.setDatabaseUsername(args[3]);
+        DatabaseConnection.setDatabasePassword(args[4]);
+
+        Project project = new Project(args[0]);
         System.out.println("Receiving all commit ids...");
         List<String> diffCommitIds = new ArrayList<>();
         List<String> commitIds = getCommitIds(project.getUrl());
