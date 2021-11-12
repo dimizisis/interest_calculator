@@ -1,8 +1,5 @@
 package infrastructure.newcode;
 
-import com.google.gson.annotations.Expose;
-import com.google.gson.annotations.SerializedName;
-
 import java.util.List;
 
 /**
@@ -11,14 +8,15 @@ import java.util.List;
  */
 public class PrincipalResponseEntity {
 
-	@SerializedName("sha")
-	@Expose
+	public PrincipalResponseEntity(String sha, Integer commitTime, List<DiffEntry> diffEntries) {
+		this.sha = sha;
+		this.commitTime = commitTime;
+		this.diffEntries = diffEntries;
+	}
+
 	private String sha;
-	@SerializedName("commitTime")
-	@Expose
 	private Integer commitTime;
-	@SerializedName("diffEntries")
-	@Expose
+
 	private List<DiffEntry> diffEntries = null;
 
 	public String getSha() {

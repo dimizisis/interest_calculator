@@ -1,8 +1,5 @@
 package infrastructure.newcode;
 
-import com.google.gson.annotations.Expose;
-import com.google.gson.annotations.SerializedName;
-
 /**
  * @author George Digkas <digasgeo@gmail.com>
  *
@@ -10,14 +7,14 @@ import com.google.gson.annotations.SerializedName;
 
 public class DiffEntry {
 
-	@SerializedName("oldFilePath")
-	@Expose
+	public DiffEntry(String oldFilePath, String newFilePath, String changeType) {
+		this.oldFilePath = oldFilePath;
+		this.newFilePath = newFilePath;
+		this.changeType = changeType;
+	}
+
 	private String oldFilePath;
-	@SerializedName("newFilePath")
-	@Expose
 	private String newFilePath;
-	@SerializedName("changeType")
-	@Expose
 	private String changeType;
 
 	public String getOldFilePath() {

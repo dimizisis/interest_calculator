@@ -1,15 +1,12 @@
 package main;
 
 import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.google.gson.Gson;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
-import data.Endpoints;
 import data.Globals;
 import db.DatabaseConnection;
 import db.InsertToDB;
@@ -23,6 +20,11 @@ import metricsCalculator.calculator.MetricsCalculator;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.RevCommit;
 
 import static db.RetrieveFromDB.*;
 
@@ -45,10 +47,19 @@ public class Main {
         DatabaseConnection.setDatabasePassword(args[4]);
 
         Project project = new Project(args[0]);
+
+        try {
+            deleteSourceCode(new File(project.getClonePath()));
+        } catch (Exception ignored) {
+        }
+
+        System.out.printf("Cloning %s...\n", project.getUrl());
+        Git git = cloneRepository(project);
+
         System.out.println("Receiving all commit ids...");
         List<String> diffCommitIds = new ArrayList<>();
-        List<String> commitIds = getCommitIds(project.getUrl());
-        if (Objects.isNull(commitIds))
+        List<String> commitIds = getCommitIds(git);
+        if (commitIds.isEmpty())
             return;
         Collections.reverse(commitIds);
         int start = 0;
@@ -66,14 +77,6 @@ public class Main {
             }
         } catch (Exception ignored) {
         }
-
-        try {
-            deleteSourceCode(new File(project.getClonePath()));
-        } catch (Exception ignored) {
-        }
-
-        System.out.printf("Cloning %s...\n", project.getUrl());
-        Git git = cloneRepository(project);
 
         if (Objects.isNull(git))
             System.exit(-1);
@@ -100,7 +103,7 @@ public class Main {
             checkout(Objects.requireNonNull(project), Objects.requireNonNull(currentRevision), Objects.requireNonNull(git));
             System.out.printf("Calculating metrics for commit %s (%d)...\n", currentRevision.getSha(), currentRevision.getRevisionCount());
             try {
-                PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(project.getUrl(), currentRevision.getSha());
+                PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(git, currentRevision.getSha());
                 if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
                     if (Globals.getJavaFiles().isEmpty())
                         InsertToDB.insertEmpty(project, currentRevision);
@@ -124,7 +127,7 @@ public class Main {
     /**
      * Inserts the data of the first revision (in list).
      *
-     * @param project the project we are referring to
+     * @param project         the project we are referring to
      * @param currentRevision the current revision we are analysing
      */
     private static void insertData(Project project, Revision currentRevision) {
@@ -185,34 +188,60 @@ public class Main {
     /**
      * Gets all commit ids for a specific git repo.
      *
-     * @param gitURL the url of git repository
+     * @param git the git object
      */
-    private static List<String> getCommitIds(String gitURL) {
-        HttpResponse<JsonNode> httpResponse = null;
-        Unirest.setTimeouts(0, 0);
+    private static List<String> getCommitIds(Git git) {
+        List<String> commitIds = new ArrayList<>();
         try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989" + Endpoints.GET_COMMIT_IDS_ENDPOINT + gitURL).asJson();
-        } catch (UnirestException e) {
+            String treeName = getHeadName(git.getRepository());
+            for (RevCommit commit : git.log().add(git.getRepository().resolve(treeName)).call())
+                commitIds.add(commit.getName());
+        } catch (Exception ignored) {
+        }
+
+        return commitIds;
+    }
+
+    public static String getHeadName(Repository repo) {
+        String result = null;
+        try {
+            ObjectId id = repo.resolve(Constants.HEAD);
+            result = id.getName();
+        } catch (IOException e) {
             e.printStackTrace();
         }
-        return Objects.nonNull(httpResponse) ? Arrays.asList(new Gson().fromJson(httpResponse.getBody().toString(), String[].class)) : null;
+        return result;
     }
 
     /**
      * Gets all commit ids for a specific git repo.
      *
-     * @param sha the commit id
+     * @param git the git object
      */
-    private static PrincipalResponseEntity[] getResponseEntitiesAtCommit(String gitURL, String sha) {
-        HttpResponse<JsonNode> httpResponse;
-        Unirest.setTimeouts(0, 0);
+    private static PrincipalResponseEntity[] getResponseEntitiesAtCommit(Git git, String sha) {
+        RevCommit headCommit;
         try {
-            httpResponse = Unirest.get("http://195.251.210.147:8989" + Endpoints.GET_RESPONSE_ENTITIES_AT_COMMIT_ENDPOINT + gitURL + "&sha=" + sha).asJson();
-            return new Gson().fromJson(httpResponse.getBody().toString(), PrincipalResponseEntity[].class);
-        } catch (UnirestException e) {
+            headCommit = git.getRepository().parseCommit(ObjectId.fromString(sha));
+        } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
+        RevCommit diffWith = Objects.requireNonNull(headCommit).getParent(0);
+        FileOutputStream stdout = new FileOutputStream(FileDescriptor.out);
+        PrincipalResponseEntity[] principalResponseEntities = new PrincipalResponseEntity[1];
+        try (DiffFormatter diffFormatter = new DiffFormatter(stdout)) {
+            diffFormatter.setRepository(git.getRepository());
+            try {
+                List<DiffEntry> diffEntries = new ArrayList<>();
+                for (org.eclipse.jgit.diff.DiffEntry entry : diffFormatter.scan(headCommit, diffWith)) {
+                    diffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                }
+                principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), diffEntries);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return principalResponseEntities;
     }
 
     /**
@@ -272,6 +301,7 @@ public class Main {
 
     /**
      * Clones a repo to a specified path.
+     *
      * @param project the project we are referring to
      * @return a git object
      */
@@ -290,9 +320,9 @@ public class Main {
     /**
      * Checkouts to specified commitId (SHA)
      *
-     * @param project the project we are referring to
+     * @param project         the project we are referring to
      * @param currentRevision the revision we are checking out to
-     * @param git a git object
+     * @param git             a git object
      */
     private static void checkout(Project project, Revision currentRevision, Git git) throws GitAPIException {
         try {
@@ -307,9 +337,9 @@ public class Main {
     /**
      * Sets the metrics of new and modified files.
      *
-     * @param project the project we are referring to
+     * @param project         the project we are referring to
      * @param currentRevision the revision we are analysing
-     * @param diffEntries the list containing the diff entries received.
+     * @param diffEntries     the list containing the diff entries received.
      */
     private static void setMetrics(Project project, Revision currentRevision, List<DiffEntry> diffEntries) {
         removeDeletedFiles(currentRevision, diffEntries);
@@ -371,9 +401,9 @@ public class Main {
     /**
      * Get Metrics from Metrics Calculator for specific java files (new or modified)
      *
-     * @param project the project we are referring to
+     * @param project         the project we are referring to
      * @param currentRevision the revision we are analysing
-     * @param jfs         the list of java files
+     * @param jfs             the list of java files
      */
     private static void setMetrics(Project project, Revision currentRevision, Set<JavaFile> jfs) {
         if (jfs.isEmpty()) return;
