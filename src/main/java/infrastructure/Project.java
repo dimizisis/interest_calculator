@@ -26,8 +26,8 @@ public class Project {
         this.url = url;
         this.owner = getRepositoryOwner();
         this.repo = getRepositoryName();
+        this.clonePath = "C:/Users/Dimitris/Desktop/testClone";
 //        this.clonePath = File.pathSeparator + "tmp" + File.pathSeparator + getRepositoryOwner() + File.pathSeparator + getRepositoryName();
-        this.clonePath = "C:/Users/Dimitris/Desktop/test";
     }
 
     public Project(String url, String owner, String repo, String clonePath) {
