@@ -233,7 +233,6 @@ public class JavaFile {
                 topFiveNeighbors.add(Objects.requireNonNull(similarity).getJf2());
 //                    System.out.printf("********* Commit %s: No%d neighbor for file %s is: %s (Similarity = %g) *********\n", JavaFile.this.currentRevision.getSha(), i + 1, JavaFile.this.getPath(), similarity.getJf2().getPath(), similarity.getSimilarity());
             }
-            System.out.println();
             return topFiveNeighbors;
         }
 

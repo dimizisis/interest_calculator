@@ -233,7 +233,7 @@ public class Main {
             diffFormatter.setRepository(git.getRepository());
             try {
                 List<DiffEntry> diffEntries = new ArrayList<>();
-                for (org.eclipse.jgit.diff.DiffEntry entry : diffFormatter.scan(headCommit, diffWith)) {
+                for (org.eclipse.jgit.diff.DiffEntry entry : diffFormatter.scan(diffWith, headCommit)) {
                     diffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
                 }
                 principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), diffEntries);
@@ -271,7 +271,7 @@ public class Main {
         Set<JavaFile> newFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
-                .filter(diffEntry -> diffEntry.getChangeType().equals("ADD"))
+                .filter(diffEntry -> diffEntry.getChangeType().equals("ADD") || diffEntry.getChangeType().equals("COPY"))
                 .filter(diffEntry -> diffEntry.getNewFilePath().toLowerCase().endsWith(".java"))
                 .forEach(diffEntry -> newFiles.add(new JavaFile(diffEntry.getNewFilePath(), currentRevision)));
         return newFiles;
@@ -287,7 +287,7 @@ public class Main {
         Set<JavaFile> modifiedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
                 .stream()
-                .filter(diffEntry -> diffEntry.getChangeType().equals("MODIFY"))
+                .filter(diffEntry -> diffEntry.getChangeType().equals("MODIFY") || diffEntry.getChangeType().equals("RENAME"))
                 .forEach(diffEntry -> {
                     for (JavaFile javaFile : Globals.getJavaFiles()) {
                         if (javaFile.getPath().endsWith(diffEntry.getOldFilePath())) {
