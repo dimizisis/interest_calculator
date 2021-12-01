@@ -38,7 +38,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        if (args.length < 5)
+        if (args.length < 6)
             System.exit(-2);
 
         DatabaseConnection.setDatabaseDriver(args[1]);
@@ -46,7 +46,7 @@ public class Main {
         DatabaseConnection.setDatabaseUsername(args[3]);
         DatabaseConnection.setDatabasePassword(args[4]);
 
-        Project project = new Project(args[0]);
+        Project project = new Project(args[0], args[5]);
 
         try {
             deleteSourceCode(new File(project.getClonePath()));
@@ -105,10 +105,7 @@ public class Main {
             try {
                 PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(git, currentRevision.getSha());
                 if (Objects.isNull(responseEntities) || responseEntities.length == 0) {
-                    if (Globals.getJavaFiles().isEmpty())
-                        InsertToDB.insertEmpty(project, currentRevision);
-                    else
-                        insertData(project, currentRevision);
+                    insertData(project, currentRevision);
                     System.out.println("Calculated metrics for all files!");
                     continue;
                 }
@@ -116,8 +113,7 @@ public class Main {
                 setMetrics(project, currentRevision, responseEntities[0].getDiffEntries());
                 System.out.println("Calculated metrics for all files!");
                 insertData(project, currentRevision);
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
             DatabaseConnection.getConnection().commit();
         }
         DatabaseConnection.closeConnection(true);
@@ -131,7 +127,7 @@ public class Main {
      * @param currentRevision the current revision we are analysing
      */
     private static void insertData(Project project, Revision currentRevision) {
-        if (Globals.getJavaFiles().size() == 0)
+        if (Globals.getJavaFiles().isEmpty())
             InsertToDB.insertEmpty(project, currentRevision);
         else {
             Globals.getJavaFiles().forEach(jf -> InsertToDB.insertFileToDatabase(project, jf, currentRevision));

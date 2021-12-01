@@ -245,10 +245,16 @@ public class JavaFile {
          */
         private Double calculateSimilarityIndex(JavaFile jf2) {
 
-            double numOfClassesSimilarityPercentage = 100 - (double) (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) / Math.max(JavaFile.this.getQualityMetrics().getClassesNum(), jf2.getQualityMetrics().getClassesNum()) * 100);
-            double complexitySimilarityPercentage = 100 - (Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) / Math.max(JavaFile.this.getQualityMetrics().getComplexity(), jf2.getQualityMetrics().getComplexity()) * 100);
-            double methodSimilarityPercentage = 100 - (Math.abs(JavaFile.this.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / Math.max(JavaFile.this.getQualityMetrics().getWMC(), jf2.getQualityMetrics().getWMC()) * 100);
-            double linesOfCodeSimilarityPercentage = 100 - (double) (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - jf2.getQualityMetrics().getSIZE1()) / Math.max(JavaFile.this.getQualityMetrics().getSIZE1(), jf2.getQualityMetrics().getSIZE1()) * 100);
+            double numOfClassesSimilarityPercentage = 0.0, complexitySimilarityPercentage = 0.0, methodSimilarityPercentage = 0.0, linesOfCodeSimilarityPercentage = 0.0;
+
+            if (JavaFile.this.getQualityMetrics().getClassesNum() != 0 || jf2.getQualityMetrics().getClassesNum() != 0)
+                numOfClassesSimilarityPercentage = 100 - (double) (Math.abs(JavaFile.this.getQualityMetrics().getClassesNum() - jf2.getQualityMetrics().getClassesNum()) / Math.max(JavaFile.this.getQualityMetrics().getClassesNum(), jf2.getQualityMetrics().getClassesNum()) * 100);
+            if (JavaFile.this.getQualityMetrics().getComplexity() != 0 || jf2.getQualityMetrics().getComplexity() != 0)
+                complexitySimilarityPercentage = 100 - (Math.abs(JavaFile.this.getQualityMetrics().getComplexity() - jf2.getQualityMetrics().getComplexity()) / Math.max(JavaFile.this.getQualityMetrics().getComplexity(), jf2.getQualityMetrics().getComplexity()) * 100);
+            if (JavaFile.this.getQualityMetrics().getWMC() != 0 || jf2.getQualityMetrics().getWMC() != 0)
+                methodSimilarityPercentage = 100 - (Math.abs(JavaFile.this.getQualityMetrics().getWMC() - jf2.getQualityMetrics().getWMC()) / Math.max(JavaFile.this.getQualityMetrics().getWMC(), jf2.getQualityMetrics().getWMC()) * 100);
+            if (JavaFile.this.getQualityMetrics().getSIZE1() != 0 || jf2.getQualityMetrics().getSIZE1() != 0)
+                linesOfCodeSimilarityPercentage = 100 - (double) (Math.abs(JavaFile.this.getQualityMetrics().getSIZE1() - jf2.getQualityMetrics().getSIZE1()) / Math.max(JavaFile.this.getQualityMetrics().getSIZE1(), jf2.getQualityMetrics().getSIZE1()) * 100);
 
             return (numOfClassesSimilarityPercentage
                     + complexitySimilarityPercentage
