@@ -251,16 +251,9 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      */
     private int calculateSize1(TypeDeclaration<?> javaClass) {
         int size = 0;
-        size += javaClass.getMethods()
-                .stream()
-                .filter(method -> method.isAbstract() || method.isNative())
-                .count();
-        size += javaClass.getMethods()
-                .stream()
-                .filter(method -> method.getBegin().isPresent() && method.getEnd().isPresent())
-                .mapToInt(method -> method.getEnd().get().line - method.getBegin().get().line + 1)
-                .sum();
-        size += javaClass.getFields().size();
+        for (BodyDeclaration<?> member : javaClass.getMembers())
+            if (member.getBegin().isPresent() && member.getEnd().isPresent())
+                size += member.getEnd().get().line - member.getBegin().get().line;
         return size;
     }
 
@@ -571,11 +564,9 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         }
 
         try {
-            this.classMetrics.setDit(calculateDit(javaClass.resolve().getQualifiedName(), superClassName != null
-                    && javaClass.resolve().getAncestors().size() != 0
-                    ? javaClass.resolve().getAncestors().get(javaClass.resolve().getAncestors().size() - 1) : null));
-        } catch (Exception ignored) {
-        }
+            calculateDit(javaClass.resolve().getQualifiedName(), Objects.nonNull(superClassName) && javaClass.resolve().getAncestors().size() != 0
+                    ? javaClass.getExtendedTypes().get(0).resolve() : null);
+        } catch (Throwable ignored) {}
 
         this.classMetrics.setDac(calculateDac(javaClass));
         this.classMetrics.setSize2(calculateSize2(javaClass));
