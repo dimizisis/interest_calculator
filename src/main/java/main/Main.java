@@ -17,6 +17,9 @@ import infrastructure.interest.JavaFile;
 import infrastructure.newcode.DiffEntry;
 import infrastructure.newcode.PrincipalResponseEntity;
 import metricsCalculator.calculator.MetricsCalculator;
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -38,6 +41,9 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
+        BasicConfigurator.configure();
+        Logger.getRootLogger().setLevel(Level.OFF);
+
         if (args.length < 6)
             System.exit(-2);
 
@@ -55,6 +61,7 @@ public class Main {
 
         System.out.printf("Cloning %s...\n", project.getUrl());
         Git git = cloneRepository(project);
+        Globals.setGit(git);
 
         System.out.println("Receiving all commit ids...");
         List<String> diffCommitIds = new ArrayList<>();
@@ -194,7 +201,6 @@ public class Main {
                 commitIds.add(commit.getName());
         } catch (Exception ignored) {
         }
-
         return commitIds;
     }
 

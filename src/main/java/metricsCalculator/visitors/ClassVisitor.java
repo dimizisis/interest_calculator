@@ -98,7 +98,11 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         if (Objects.nonNull(superClassNames))
             superClassNames
                     .stream()
-                    .filter(this::withinAnalysisBounds).forEach(superClassName -> {
+                    .filter(superClass -> {
+                        try {
+                            return this.withinAnalysisBounds(superClass);
+                        } catch (Throwable t) { return false; }
+                    }).forEach(superClassName -> {
                         this.classMetricsContainer.getMetrics(superClassName).incNoc();
                         registerCoupling(superClassName);
             });
@@ -126,7 +130,11 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
             return javaClass
                     .getExtendedTypes()
                     .stream()
-                    .map(extendedType -> extendedType.resolve().getQualifiedName())
+                    .map(extendedType -> {
+                        try {
+                            return extendedType.resolve().getQualifiedName();
+                        } catch (UnsolvedSymbolException e) { return null; }
+                    })
                     .collect(Collectors.toList());
         } catch (Exception e) {
             return null;
@@ -253,7 +261,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         int size = 0;
         for (BodyDeclaration<?> member : javaClass.getMembers())
             if (member.getBegin().isPresent() && member.getEnd().isPresent())
-                size += member.getEnd().get().line - member.getBegin().get().line;
+                size += (member.getEnd().get().line - member.getBegin().get().line == 0) ? 1 : member.getEnd().get().line - member.getBegin().get().line;
         return size;
     }
 
@@ -348,7 +356,9 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         } catch (Exception ignored) {
         }
 
-        incRFC(method.resolve().getQualifiedName());
+        try {
+            incRFC(method.resolve().getQualifiedName());
+        } catch (UnsolvedSymbolException ignored) {}
         investigateExceptions(method);
         investigateModifiers(method);
         investigateParameters(method);

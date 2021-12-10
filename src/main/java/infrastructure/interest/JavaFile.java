@@ -2,6 +2,7 @@ package infrastructure.interest;
 
 import data.Globals;
 import infrastructure.Revision;
+import refactoringminer.CustomRefactoringHandler;
 
 import java.util.*;
 
@@ -11,12 +12,14 @@ public class JavaFile {
     private final QualityMetrics qualityMetrics;
     private final TDInterest interest;
     private Kappa k;
+    private Revision revision;
 
     public JavaFile(String path, Revision revision) {
         this.path = path;
         this.classes = new HashSet<>();
         this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
+        this.revision = revision;
         this.setK(new Kappa(revision));
     }
 
@@ -24,6 +27,7 @@ public class JavaFile {
         this.path = path;
         this.qualityMetrics = qualityMetrics;
         this.interest = new TDInterest(interestInEuros, interestInHours, interestInAvgLOC, avgInterestPerLOC, sumInterestPerLOC);
+        this.revision = revision;
         this.setK(new Kappa(revision, kappa));
         this.setClasses(classes);
     }
@@ -37,8 +41,16 @@ public class JavaFile {
     }
 
     public void calculateInterest() {
-        this.getK().update(this.getQualityMetrics().getOldSIZE1());
-        this.getInterest().calculate();
+        Globals.getMiner().detectAtCommit(Objects.requireNonNull(Globals.getGit()).getRepository(), JavaFile.this.getRevision().getSha(), new CustomRefactoringHandler(JavaFile.this.getPath()));
+        if (Globals.getHasRefactoring()) {
+            this.getInterest().calculate();
+            this.getK().update(this.getQualityMetrics().getOldSIZE1());
+        }
+        else {
+            this.getK().update(this.getQualityMetrics().getOldSIZE1());
+            this.getInterest().calculate();
+        }
+        Globals.resetHasRefactoring();
     }
 
     public String getPath() {
@@ -97,6 +109,13 @@ public class JavaFile {
         this.classes = classes;
     }
 
+    public Revision getRevision() {
+        return revision;
+    }
+
+    public void setRevision(Revision revision) {
+        this.revision = revision;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -113,6 +132,8 @@ public class JavaFile {
 
     class TDInterest {
 
+        private Set<JavaFile> topFiveNeighbors;
+
         private final Double HOURLY_WAGE = 39.44;
         private Double interestInEuros;
         private Double interestInHours;
@@ -126,6 +147,7 @@ public class JavaFile {
             this.interestInAvgLOC = 0.0;
             this.avgInterestPerLOC = 0.0;
             this.sumInterestPerLOC = 0.0;
+            this.topFiveNeighbors = new HashSet<>();
         }
 
         public TDInterest(Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC) {
@@ -142,6 +164,9 @@ public class JavaFile {
          * and the top 5 neighbors.
          */
         private void calculate() {
+
+            Set<JavaFile> currentTopFiveNeighbors;
+
             /* Calculate similarity */
             AbstractQueue<Similarity> similarityOfFiles = calculateSimilarities();
 
@@ -149,14 +174,32 @@ public class JavaFile {
             if (similarityOfFiles.isEmpty())
                 return;
 
-            /* Find Top 5 Neighbors */
-            Set<JavaFile> topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
+            if (Globals.getHasRefactoring()) {
 
-            if (Objects.isNull(topFiveNeighbors))
-                return;
+                if (topFiveNeighbors.isEmpty())
+                    return;
+                else
+                    currentTopFiveNeighbors = new HashSet<>(topFiveNeighbors);
+
+                /* Find Top 5 Neighbors */
+                topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
+
+                if (Objects.isNull(topFiveNeighbors))
+                    return;
+
+            } else {
+
+                /* Find Top 5 Neighbors */
+                topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
+
+                if (Objects.isNull(topFiveNeighbors))
+                    return;
+
+                currentTopFiveNeighbors = new HashSet<>(topFiveNeighbors);
+            }
 
             /* Get optimal metrics & normalize (add one smoothing) */
-            QualityMetrics optimalMetrics = getOptimalMetrics(topFiveNeighbors);
+            QualityMetrics optimalMetrics = getOptimalMetrics(currentTopFiveNeighbors);
             optimalMetrics.normalize();
 
 			/* Calculate the interest per LOC
