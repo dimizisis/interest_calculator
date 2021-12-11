@@ -464,15 +464,17 @@ public class Main {
         jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
         jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
         jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
+        jf.setOldQualityMetrics(jf.getQualityMetrics());
     }
 
     /**
-     * Register Metrics to specified java file
+     * Append Metrics to specified java file
      *
      * @param calcEntries entries taken from MetricsCalculator's results
      * @param jf          the java file we are registering metrics to
      */
     private static void appendMetrics(String[] calcEntries, JavaFile jf) {
+        jf.setOldQualityMetrics(jf.getQualityMetrics());
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
         jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));

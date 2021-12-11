@@ -211,6 +211,9 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      */
     private double calculateWmcCc(TypeDeclaration<?> javaClass) {
 
+        if (javaClass.isEnumDeclaration() || javaClass.isEnumConstantDeclaration() || (javaClass.isClassOrInterfaceDeclaration() && javaClass.asClassOrInterfaceDeclaration().isInterface()))
+            return -1000;
+
         float total_ifs = 0.0f;
         int valid_classes = 0;
 
@@ -322,7 +325,9 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *
      * @return LCOM metric value
      */
-    private int calculateLCOM() {
+    private int calculateLCOM(ClassOrInterfaceDeclaration javaClass) {
+        if (javaClass.isEnumDeclaration() || javaClass.isEnumConstantDeclaration() || (javaClass.isClassOrInterfaceDeclaration() && javaClass.asClassOrInterfaceDeclaration().isInterface()))
+            return -1;
         int lcom = 0;
         for (int i = 0; i < this.methodIntersection.size(); ++i) {
             for (int j = i + 1; j < this.methodIntersection.size(); ++j) {
@@ -586,7 +591,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         this.classMetrics.setRfc(this.responseSet.size() + this.classMetrics.getWmc()); //WMC as CIS angor
         this.classMetrics.setMpc(this.methodsCalled.size());    //angor
-        this.classMetrics.setLcom(calculateLCOM());
+        this.classMetrics.setLcom(calculateLCOM(javaClass));
     }
 
     /**
@@ -600,10 +605,10 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         this.classMetrics.setDac(calculateDac(en));
         this.classMetrics.setSize2(calculateSize2(en));
         this.classMetrics.setSize1(calculateSize1(en));
-        this.classMetrics.setWmcCc(calculateWmcCc(en));
+        this.classMetrics.setWmcCc(-1000);
         this.classMetrics.setRfc(this.responseSet.size() + this.classMetrics.getWmc()); //WMC as CIS angor
         this.classMetrics.setMpc(this.methodsCalled.size());    //angor
-        this.classMetrics.setLcom(calculateLCOM());
+        this.classMetrics.setLcom(-1);
         this.classMetrics.setCbo(this.efferentCoupledClasses.size());
     }
 }
