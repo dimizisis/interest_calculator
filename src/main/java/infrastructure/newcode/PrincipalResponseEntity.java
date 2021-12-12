@@ -9,7 +9,7 @@ import java.util.Set;
  */
 public class PrincipalResponseEntity {
 
-	public PrincipalResponseEntity(String sha, Integer commitTime, Set<DiffEntry> addDiffEntries, Set<DiffEntry> modifyDiffEntries, Set<DiffEntry> deleteDiffEntries) {
+	public PrincipalResponseEntity(String sha, Integer commitTime, Set<DiffEntry> addDiffEntries, Set<DiffEntry> modifyDiffEntries, Set<DiffEntry> renameDiffEntries, Set<DiffEntry> deleteDiffEntries) {
 		this.sha = sha;
 		this.commitTime = commitTime;
 		this.addDiffEntries = addDiffEntries;
@@ -20,9 +20,10 @@ public class PrincipalResponseEntity {
 	private String sha;
 	private Integer commitTime;
 
-	private Set<DiffEntry> addDiffEntries = null;
-	private Set<DiffEntry> modifyDiffEntries = null;
-	private Set<DiffEntry> deleteDiffEntries = null;
+	private Set<DiffEntry> addDiffEntries;
+	private Set<DiffEntry> modifyDiffEntries;
+	private Set<DiffEntry> deleteDiffEntries;
+	private Set<DiffEntry> renameDiffEntries;
 
 	public String getSha() {
 		return sha;
@@ -64,16 +65,24 @@ public class PrincipalResponseEntity {
 		this.deleteDiffEntries = deleteDiffEntries;
 	}
 
+	public Set<DiffEntry> getRenameDiffEntries() {
+		return renameDiffEntries;
+	}
+
+	public void setRenameDiffEntries(Set<DiffEntry> renameDiffEntries) {
+		this.renameDiffEntries = renameDiffEntries;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		PrincipalResponseEntity that = (PrincipalResponseEntity) o;
-		return Objects.equals(sha, that.sha) && Objects.equals(commitTime, that.commitTime) && Objects.equals(addDiffEntries, that.addDiffEntries) && Objects.equals(modifyDiffEntries, that.modifyDiffEntries) && Objects.equals(deleteDiffEntries, that.deleteDiffEntries);
+		return Objects.equals(sha, that.sha) && Objects.equals(commitTime, that.commitTime) && Objects.equals(addDiffEntries, that.addDiffEntries) && Objects.equals(modifyDiffEntries, that.modifyDiffEntries) && Objects.equals(deleteDiffEntries, that.deleteDiffEntries) && Objects.equals(renameDiffEntries, that.renameDiffEntries);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(sha, commitTime, addDiffEntries, modifyDiffEntries, deleteDiffEntries);
+		return Objects.hash(sha, commitTime, addDiffEntries, modifyDiffEntries, deleteDiffEntries, renameDiffEntries);
 	}
 }

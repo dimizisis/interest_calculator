@@ -236,16 +236,19 @@ public class Main {
             try {
                 Set<DiffEntry> addDiffEntries = new HashSet<>();
                 Set<DiffEntry> modifyDiffEntries = new HashSet<>();
+                Set<DiffEntry> renameDiffEntries = new HashSet<>();
                 Set<DiffEntry> deleteDiffEntries = new HashSet<>();
                 for (org.eclipse.jgit.diff.DiffEntry entry : diffFormatter.scan(diffWith, headCommit)) {
                     if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.ADD) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.COPY) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         addDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
-                    if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.MODIFY) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.RENAME) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.MODIFY) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         modifyDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
-                    if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.RENAME) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                        renameDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         deleteDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
                 }
-                principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), addDiffEntries, modifyDiffEntries, deleteDiffEntries);
+                principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), addDiffEntries, modifyDiffEntries, renameDiffEntries, deleteDiffEntries);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -312,9 +315,20 @@ public class Main {
      * @param entity     the entity with the list containing the diff entries received.
      */
     private static void setMetrics(Project project, Revision currentRevision, PrincipalResponseEntity entity) {
-        removeDeletedFiles(currentRevision, entity.getDeleteDiffEntries());
-        setMetrics(project, currentRevision, entity.getAddDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
-        setMetrics(project, currentRevision, entity.getModifyDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
+        if (!entity.getDeleteDiffEntries().isEmpty())
+            removeDeletedFiles(currentRevision, entity.getDeleteDiffEntries());
+        if (!entity.getAddDiffEntries().isEmpty())
+            setMetrics(project, currentRevision, entity.getAddDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
+        if (!entity.getModifyDiffEntries().isEmpty())
+            setMetrics(project, currentRevision, entity.getModifyDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
+        if (!entity.getRenameDiffEntries().isEmpty())
+            entity.getRenameDiffEntries()
+                    .forEach(diffEntry -> {
+                        for (JavaFile javaFile : Globals.getJavaFiles()) {
+                            if (javaFile.getPath().endsWith(diffEntry.getOldFilePath()))
+                                javaFile.setPath(javaFile.getPath().replace(diffEntry.getOldFilePath(), diffEntry.getNewFilePath()));
+                        }
+                    });
     }
 
     /**
