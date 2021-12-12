@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import data.Globals;
 import db.DatabaseConnection;
@@ -117,7 +118,7 @@ public class Main {
                     continue;
                 }
                 System.out.println("Analyzing new/modified commit files...");
-                setMetrics(project, currentRevision, responseEntities[0].getDiffEntries());
+                setMetrics(project, currentRevision, responseEntities[0]);
                 System.out.println("Calculated metrics for all files!");
                 insertData(project, currentRevision);
             } catch (Exception ignored) {}
@@ -234,11 +235,18 @@ public class Main {
         try (DiffFormatter diffFormatter = new DiffFormatter(stdout)) {
             diffFormatter.setRepository(git.getRepository());
             try {
-                List<DiffEntry> diffEntries = new ArrayList<>();
+                Set<DiffEntry> addDiffEntries = new HashSet<>();
+                Set<DiffEntry> modifyDiffEntries = new HashSet<>();
+                Set<DiffEntry> deleteDiffEntries = new HashSet<>();
                 for (org.eclipse.jgit.diff.DiffEntry entry : diffFormatter.scan(diffWith, headCommit)) {
-                    diffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.ADD) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.COPY) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                        addDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.MODIFY) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.RENAME) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                        modifyDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                        deleteDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
                 }
-                principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), diffEntries);
+                principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), addDiffEntries, modifyDiffEntries, deleteDiffEntries);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -251,54 +259,15 @@ public class Main {
      *
      * @param diffEntries the modified java files (new, modified, deleted)
      */
-    private static Set<JavaFile> removeDeletedFiles(Revision currentRevision, List<DiffEntry> diffEntries) {
+    private static Set<JavaFile> removeDeletedFiles(Revision currentRevision, Set<DiffEntry> diffEntries) {
         Set<JavaFile> deletedFiles = ConcurrentHashMap.newKeySet();
         diffEntries
-                .stream()
-                .filter(diffEntry -> diffEntry.getChangeType().equals("DELETE"))
+                .parallelStream()
                 .forEach(diffEntry -> {
                     deletedFiles.add(new JavaFile(diffEntry.getOldFilePath(), currentRevision));
                     Globals.getJavaFiles().removeIf(javaFile -> javaFile.getPath().endsWith(diffEntry.getOldFilePath()));
                 });
         return deletedFiles;
-    }
-
-    /**
-     * Find those files that are marked as 'NEW' (new code's call)
-     *
-     * @param diffEntries the modified java files (new, modified, deleted)
-     * @return a set containing all the new files
-     */
-    private static Set<JavaFile> findNewFiles(Revision currentRevision, List<DiffEntry> diffEntries) {
-        Set<JavaFile> newFiles = ConcurrentHashMap.newKeySet();
-        diffEntries
-                .stream()
-                .filter(diffEntry -> diffEntry.getChangeType().equals("ADD") || diffEntry.getChangeType().equals("COPY"))
-                .filter(diffEntry -> diffEntry.getNewFilePath().toLowerCase().endsWith(".java"))
-                .forEach(diffEntry -> newFiles.add(new JavaFile(diffEntry.getNewFilePath(), currentRevision)));
-        return newFiles;
-    }
-
-    /**
-     * Find those files that are marked as 'MODIFIED' (new code's call)
-     *
-     * @param diffEntries the modified java files (new, modified, deleted)
-     * @return a set containing all the modified files
-     */
-    private static Set<JavaFile> findModifiedFiles(List<DiffEntry> diffEntries) {
-        Set<JavaFile> modifiedFiles = ConcurrentHashMap.newKeySet();
-        diffEntries
-                .stream()
-                .filter(diffEntry -> diffEntry.getChangeType().equals("MODIFY") || diffEntry.getChangeType().equals("RENAME"))
-                .forEach(diffEntry -> {
-                    for (JavaFile javaFile : Globals.getJavaFiles()) {
-                        if (javaFile.getPath().endsWith(diffEntry.getOldFilePath())) {
-                            javaFile.setPath(javaFile.getPath().replace(diffEntry.getOldFilePath(), diffEntry.getNewFilePath()));
-                            modifiedFiles.add(javaFile);
-                        }
-                    }
-                });
-        return modifiedFiles;
     }
 
     /**
@@ -341,14 +310,12 @@ public class Main {
      *
      * @param project         the project we are referring to
      * @param currentRevision the revision we are analysing
-     * @param diffEntries     the list containing the diff entries received.
+     * @param entity     the entity with the list containing the diff entries received.
      */
-    private static void setMetrics(Project project, Revision currentRevision, List<DiffEntry> diffEntries) {
-        removeDeletedFiles(currentRevision, diffEntries);
-        Set<JavaFile> newFiles = findNewFiles(currentRevision, Objects.requireNonNull(diffEntries));
-        Set<JavaFile> modifiedFiles = findModifiedFiles(Objects.requireNonNull(diffEntries));
-        setMetrics(project, currentRevision, newFiles);
-        setMetrics(project, currentRevision, modifiedFiles);
+    private static void setMetrics(Project project, Revision currentRevision, PrincipalResponseEntity entity) {
+        removeDeletedFiles(currentRevision, entity.getDeleteDiffEntries());
+        setMetrics(project, currentRevision, entity.getAddDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
+        setMetrics(project, currentRevision, entity.getModifyDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
     }
 
     /**
@@ -363,27 +330,30 @@ public class Main {
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");
-        for (int i = 1; i < s.length; ++i) {
-            String[] column = s[i].split(";");
-            String filePath = column[0];
-            String className = column[1];
-            JavaFile jf;
-            if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
-                jf = new JavaFile(filePath, currentRevision);
-                jf.addClassName(className);
-                registerMetrics(column, jf);
-                Globals.addJavaFile(jf);
-            } else {
-                jf = getAlreadyDefinedFile(filePath);
-                if (Objects.nonNull(jf)) {
-                    if (jf.containsClass(className)) {
-                        registerMetrics(column, jf);
-                    } else {
-                        jf.addClassName(className);
-                        appendMetrics(column, jf);
+        try {
+            for (int i = 1; i < s.length; ++i) {
+                String[] column = s[i].split(";");
+                String filePath = column[0];
+                String className = column[1];
+                JavaFile jf;
+                if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
+                    jf = new JavaFile(filePath, currentRevision);
+                    jf.addClassName(className);
+                    registerMetrics(column, jf);
+                    Globals.addJavaFile(jf);
+                } else {
+                    jf = getAlreadyDefinedFile(filePath);
+                    if (Objects.nonNull(jf)) {
+                        if (jf.containsClass(className)) {
+                            registerMetrics(column, jf);
+                        } else {
+                            jf.addClassName(className);
+                            appendMetrics(column, jf);
+                        }
                     }
                 }
             }
+        } catch (Exception ignored) {
         }
     }
 
@@ -408,9 +378,11 @@ public class Main {
      * @param jfs             the list of java files
      */
     private static void setMetrics(Project project, Revision currentRevision, Set<JavaFile> jfs) {
-        if (jfs.isEmpty()) return;
+        if (jfs.isEmpty())
+            return;
         int resultCode = MetricsCalculator.start(project.getClonePath(), jfs);
-        if (resultCode == -1) return;
+        if (resultCode == -1)
+            return;
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");

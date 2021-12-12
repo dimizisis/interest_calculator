@@ -1,6 +1,5 @@
 package db;
 
-import data.Globals;
 import infrastructure.Project;
 import infrastructure.Revision;
 import infrastructure.interest.JavaFile;
