@@ -14,6 +14,7 @@ public class PrincipalResponseEntity {
 		this.commitTime = commitTime;
 		this.addDiffEntries = addDiffEntries;
 		this.modifyDiffEntries = modifyDiffEntries;
+		this.renameDiffEntries = renameDiffEntries;
 		this.deleteDiffEntries = deleteDiffEntries;
 	}
 
