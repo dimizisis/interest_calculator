@@ -87,6 +87,23 @@ public final class QualityMetrics {
             SIZE2 = 1;
     }
 
+    public void zero() {
+        this.classesNum = 0;
+        this.complexity = 0.0;
+        this.DIT = 0;
+        this.NOCC = 0;
+        this.RFC = 0.0;
+        this.LCOM = 0.0;
+        this.WMC = 0.0;
+        this.NOM = 0.0;
+        this.MPC = 0.0;
+        this.DAC = 0;
+        this.CBO = 0.0;
+        this.SIZE1 = 0;
+        this.SIZE2 = 0;
+        this.oldSIZE1 = 0;
+    }
+
     public Integer getClassesNum() {
         return classesNum;
     }

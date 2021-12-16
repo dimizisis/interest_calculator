@@ -241,25 +241,30 @@ public class Main {
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");
-        for (int i = 1; i < s.length; i++) {
-            String[] column = s[i].split(";");
-            String filePath = column[0];
-            String className = column[1];
-            if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
-                JavaFile jf = new JavaFile(filePath);
-                jf.addClassName(className);
-                registerMetrics(column, jf);
-                Globals.addJavaFile(jf);
-            } else {
-                JavaFile jf = getAlreadyDefinedFile(filePath);
-                if (Objects.nonNull(jf))
-                    if (jf.containsClass(className)) {
-                        registerMetrics(column, jf);
-                    } else {
-                        jf.addClassName(className);
-                        appendMetrics(column, jf);
+        try {
+            for (int i = 1; i < s.length; ++i) {
+                String[] column = s[i].split(";");
+                String filePath = column[0];
+                String className = column[1];
+                JavaFile jf;
+                if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
+                    jf = new JavaFile(filePath);
+                    jf.addClassName(className);
+                    registerMetrics(column, jf);
+                    Globals.addJavaFile(jf);
+                } else {
+                    jf = getAlreadyDefinedFile(filePath);
+                    if (Objects.nonNull(jf)) {
+                        if (jf.containsClass(className)) {
+                            appendMetrics(column, jf);
+                        } else {
+                            jf.addClassName(className);
+                            appendMetrics(column, jf);
+                        }
                     }
+                }
             }
+        } catch (Exception ignored) {
         }
     }
 
@@ -281,22 +286,23 @@ public class Main {
         MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");
         try {
-            for (int i = 1; i < s.length; i++) {
+            for (int i = 1; i < s.length; ++i) {
                 String[] column = s[i].split(";");
                 String filePath = column[0];
                 String className = column[1];
+                JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
-                    JavaFile jf = new JavaFile(filePath);
+                    jf = new JavaFile(filePath);
                     jf.addClassName(className);
                     registerMetrics(column, jf);
                     jf.calculateInterest();
                     Globals.addJavaFile(jf);
                 } else {
-                    JavaFile jf = getAlreadyDefinedFile(filePath);
+                    jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
-                            registerMetrics(column, jf);
-                        } else {
+                            appendMetrics(column, jf);
+                        } else if (!jf.containsClass(className)) {
                             jf.addClassName(className);
                             appendMetrics(column, jf);
                         }
@@ -304,7 +310,7 @@ public class Main {
                     }
                 }
             }
-        } catch (Exception exception) {
+        } catch (Exception ignored) {
         }
     }
 
@@ -326,13 +332,14 @@ public class Main {
     }
 
     private static void appendMetrics(String[] calcEntries, JavaFile jf) {
+        jf.getQualityMetrics().zero();
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
         jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
         jf.getQualityMetrics().setRFC(jf.getQualityMetrics().getRFC() + Double.parseDouble(calcEntries[5]));
-        if (Double.parseDouble(calcEntries[6]) > 0.0D)
+        if (Double.parseDouble(calcEntries[6]) > 0)
             jf.getQualityMetrics().setLCOM(jf.getQualityMetrics().getLCOM() + Double.parseDouble(calcEntries[6]));
-        if (Double.parseDouble(calcEntries[7]) > 0.0D)
+        if (Double.parseDouble(calcEntries[7]) > 0)
             jf.getQualityMetrics().setComplexity(jf.getQualityMetrics().getComplexity() + Double.parseDouble(calcEntries[7]));
         jf.getQualityMetrics().setNOM(jf.getQualityMetrics().getNOM() + Double.parseDouble(calcEntries[8]));
         jf.getQualityMetrics().setMPC(jf.getQualityMetrics().getMPC() + Double.parseDouble(calcEntries[9]));
