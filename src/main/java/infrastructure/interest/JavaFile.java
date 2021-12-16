@@ -18,8 +18,8 @@ public class JavaFile {
     public JavaFile(String path, Revision revision) {
         this.path = path;
         this.classes = new HashSet<>();
-        this.oldQualityMetrics = new QualityMetrics(revision.getSha());
-        this.qualityMetrics = new QualityMetrics(revision.getSha());
+        this.oldQualityMetrics = new QualityMetrics();
+        this.qualityMetrics = new QualityMetrics();
         this.interest = new TDInterest();
         this.revision = revision;
         this.setK(new Kappa(revision));
@@ -213,6 +213,10 @@ public class JavaFile {
 
                 if (Objects.isNull(topFiveNeighbors))
                     return;
+
+                if (revision.getRevisionCount() == 555) {
+                    System.out.println("hehe");
+                }
 
                 if (JavaFile.this.getOldQualityMetrics().equals(JavaFile.this.getQualityMetrics()))
                     return;

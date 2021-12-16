@@ -121,7 +121,8 @@ public class Main {
                 setMetrics(project, currentRevision, responseEntities[0]);
                 System.out.println("Calculated metrics for all files!");
                 insertData(project, currentRevision);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
             DatabaseConnection.getConnection().commit();
         }
         DatabaseConnection.closeConnection(true);
@@ -313,7 +314,7 @@ public class Main {
      *
      * @param project         the project we are referring to
      * @param currentRevision the revision we are analysing
-     * @param entity     the entity with the list containing the diff entries received.
+     * @param entity          the entity with the list containing the diff entries received.
      */
     private static void setMetrics(Project project, Revision currentRevision, PrincipalResponseEntity entity) {
         if (!entity.getDeleteDiffEntries().isEmpty())
@@ -353,13 +354,13 @@ public class Main {
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                     jf = new JavaFile(filePath, currentRevision);
                     jf.addClassName(className);
-                    registerMetrics(column, jf, false);
+                    registerMetrics(column, jf);
                     Globals.addJavaFile(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
-                            registerMetrics(column, jf, true);
+                            appendMetrics(column, jf);
                         } else {
                             jf.addClassName(className);
                             appendMetrics(column, jf);
@@ -409,15 +410,15 @@ public class Main {
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                     jf = new JavaFile(filePath, currentRevision);
                     jf.addClassName(className);
-                    registerMetrics(column, jf, false);
+                    registerMetrics(column, jf);
                     jf.calculateInterest();
                     Globals.addJavaFile(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
-                            registerMetrics(column, jf, true);
-                        } else {
+                            appendMetrics(column, jf);
+                        } else if (!jf.containsClass(className)) {
                             jf.addClassName(className);
                             appendMetrics(column, jf);
                         }
@@ -435,44 +436,22 @@ public class Main {
      * @param calcEntries entries taken from MetricsCalculator's results
      * @param jf          the java file we are registering metrics to
      */
-    private static void registerMetrics(String[] calcEntries, JavaFile jf, boolean exists) {
-        try {
-            if (exists) {
-                jf.setOldQualityMetrics(jf.getQualityMetrics());
-                jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
-                jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
-                jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
-                jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
-                jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
-                jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
-                jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[8]));
-                jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[9]));
-                jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[10]));
-                jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
-                jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
-                jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
-                jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
-                jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
-            }
-            else {
-                jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
-                jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
-                jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
-                jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
-                jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
-                jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
-                jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[8]));
-                jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[9]));
-                jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[10]));
-                jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
-                jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
-                jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
-                jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
-                jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
-                jf.setOldQualityMetrics(jf.getQualityMetrics());
-            }
-        } catch (Throwable t) {
-        }
+    private static void registerMetrics(String[] calcEntries, JavaFile jf) {
+        jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
+        jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
+        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
+        jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
+        jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
+        jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
+        jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[8]));
+        jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[9]));
+        jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[10]));
+        jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
+        jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
+        jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
+        jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
+        jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
+        jf.setOldQualityMetrics(jf.getQualityMetrics());
     }
 
     /**
@@ -483,6 +462,7 @@ public class Main {
      */
     private static void appendMetrics(String[] calcEntries, JavaFile jf) {
         jf.setOldQualityMetrics(jf.getQualityMetrics());
+        jf.getQualityMetrics().zero();
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
         jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
