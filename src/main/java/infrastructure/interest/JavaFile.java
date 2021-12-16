@@ -10,7 +10,7 @@ public class JavaFile {
     private String path;
     private Set<String> classes;
     private final QualityMetrics qualityMetrics;
-    private QualityMetrics oldQualityMetrics;
+    private final QualityMetrics oldQualityMetrics;
     private final TDInterest interest;
     private Kappa k;
     private Revision revision;
@@ -18,8 +18,8 @@ public class JavaFile {
     public JavaFile(String path, Revision revision) {
         this.path = path;
         this.classes = new HashSet<>();
-        this.oldQualityMetrics = new QualityMetrics();
-        this.qualityMetrics = new QualityMetrics();
+        this.oldQualityMetrics = new QualityMetrics(revision.getSha());
+        this.qualityMetrics = new QualityMetrics(revision.getSha());
         this.interest = new TDInterest();
         this.revision = revision;
         this.setK(new Kappa(revision));
@@ -28,6 +28,7 @@ public class JavaFile {
     public JavaFile(String path, QualityMetrics qualityMetrics, Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC, Double kappa, Set<String> classes, Revision revision) {
         this.path = path;
         this.qualityMetrics = qualityMetrics;
+        this.oldQualityMetrics = qualityMetrics;
         this.interest = new TDInterest(interestInEuros, interestInHours, interestInAvgLOC, avgInterestPerLOC, sumInterestPerLOC);
         this.revision = revision;
         this.setK(new Kappa(revision, kappa));
@@ -126,21 +127,23 @@ public class JavaFile {
     }
 
     public void setOldQualityMetrics(QualityMetrics qualityMetrics) {
-        this.oldQualityMetrics.setDAC(qualityMetrics.getDAC());
-        this.oldQualityMetrics.setDIT(qualityMetrics.getDIT());
-        this.oldQualityMetrics.setLCOM(qualityMetrics.getLCOM());
-        this.oldQualityMetrics.setMPC(qualityMetrics.getMPC());
-        this.oldQualityMetrics.setNOCC(qualityMetrics.getNOCC());
-        this.oldQualityMetrics.setNOM(qualityMetrics.getNOM());
-        this.oldQualityMetrics.setRFC(qualityMetrics.getRFC());
-        this.oldQualityMetrics.setSIZE1(qualityMetrics.getSIZE1());
-        this.oldQualityMetrics.setSIZE2(qualityMetrics.getSIZE2());
-        this.oldQualityMetrics.setWMC(qualityMetrics.getWMC());
-        this.oldQualityMetrics.setCBO(qualityMetrics.getCBO());
-        this.oldQualityMetrics.setComplexity(qualityMetrics.getComplexity());
-        this.oldQualityMetrics.setOldSIZE1(qualityMetrics.getOldSIZE1());
-        this.oldQualityMetrics.setClassesNum(qualityMetrics.getClassesNum());
-        this.oldQualityMetrics.setSha(qualityMetrics.getSha());
+        if (Objects.nonNull(qualityMetrics)) {
+            this.oldQualityMetrics.setDAC(qualityMetrics.getDAC());
+            this.oldQualityMetrics.setDIT(qualityMetrics.getDIT());
+            this.oldQualityMetrics.setLCOM(qualityMetrics.getLCOM());
+            this.oldQualityMetrics.setMPC(qualityMetrics.getMPC());
+            this.oldQualityMetrics.setNOCC(qualityMetrics.getNOCC());
+            this.oldQualityMetrics.setNOM(qualityMetrics.getNOM());
+            this.oldQualityMetrics.setRFC(qualityMetrics.getRFC());
+            this.oldQualityMetrics.setSIZE1(qualityMetrics.getSIZE1());
+            this.oldQualityMetrics.setSIZE2(qualityMetrics.getSIZE2());
+            this.oldQualityMetrics.setWMC(qualityMetrics.getWMC());
+            this.oldQualityMetrics.setCBO(qualityMetrics.getCBO());
+            this.oldQualityMetrics.setComplexity(qualityMetrics.getComplexity());
+            this.oldQualityMetrics.setOldSIZE1(qualityMetrics.getOldSIZE1());
+            this.oldQualityMetrics.setClassesNum(qualityMetrics.getClassesNum());
+            this.oldQualityMetrics.setSha(qualityMetrics.getSha());
+        }
     }
 
     @Override
