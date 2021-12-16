@@ -358,7 +358,7 @@ public class Main {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
-                            registerMetrics(column, jf);
+                            appendMetrics(column, jf);
                         } else {
                             jf.addClassName(className);
                             appendMetrics(column, jf);
@@ -415,8 +415,8 @@ public class Main {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         if (jf.containsClass(className)) {
-                            registerMetrics(column, jf);
-                        } else {
+                            appendMetrics(column, jf);
+                        } else if (!jf.containsClass(className)) {
                             jf.addClassName(className);
                             appendMetrics(column, jf);
                         }
@@ -458,6 +458,7 @@ public class Main {
      * @param jf          the java file we are registering metrics to
      */
     private static void appendMetrics(String[] calcEntries, JavaFile jf) {
+        jf.getQualityMetrics().zero();
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
         jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
