@@ -22,10 +22,11 @@ public class CustomRefactoringHandler extends RefactoringHandler {
     @Override
     public void handle(String commitId, List<Refactoring> refactorings) {
         if (!refactorings.isEmpty())
-            for (Refactoring refactoring : refactorings)
-                for (CodeRange codeRange : refactoring.rightSide())
+            for (Refactoring refactoring : refactorings) {
+                for (CodeRange codeRange : refactoring.rightSide()) {
                     if (codeRange.getFilePath().equals(filePath))
                         Globals.setHasRefactoring(true);
+                }
+            }
     }
-
 }

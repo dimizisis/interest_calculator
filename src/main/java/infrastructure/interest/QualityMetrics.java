@@ -1,5 +1,7 @@
 package infrastructure.interest;
 
+import java.util.Objects;
+
 public final class QualityMetrics {
 
     private String sha;
@@ -202,5 +204,18 @@ public final class QualityMetrics {
 
     public void setSha(String sha) {
         this.sha = sha;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        QualityMetrics that = (QualityMetrics) o;
+        return Objects.equals(classesNum, that.classesNum) && Objects.equals(complexity, that.complexity) && Objects.equals(DIT, that.DIT) && Objects.equals(NOCC, that.NOCC) && Objects.equals(RFC, that.RFC) && Objects.equals(LCOM, that.LCOM) && Objects.equals(WMC, that.WMC) && Objects.equals(NOM, that.NOM) && Objects.equals(MPC, that.MPC) && Objects.equals(DAC, that.DAC) && Objects.equals(CBO, that.CBO) && Objects.equals(SIZE1, that.SIZE1) && Objects.equals(SIZE2, that.SIZE2);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(classesNum, complexity, DIT, NOCC, RFC, LCOM, WMC, NOM, MPC, DAC, CBO, SIZE1, SIZE2);
     }
 }

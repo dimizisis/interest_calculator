@@ -159,6 +159,7 @@ public class JavaFile {
     class TDInterest {
 
         private Set<JavaFile> topFiveNeighbors;
+        private QualityMetrics optimalMetrics;
 
         private final Double HOURLY_WAGE = 39.44;
         private Double interestInEuros;
@@ -174,6 +175,7 @@ public class JavaFile {
             this.avgInterestPerLOC = 0.0;
             this.sumInterestPerLOC = 0.0;
             this.topFiveNeighbors = new HashSet<>();
+            this.optimalMetrics = new QualityMetrics();
         }
 
         public TDInterest(Double interestInEuros, Double interestInHours, Double interestInAvgLOC, Double avgInterestPerLOC, Double sumInterestPerLOC) {
@@ -191,8 +193,6 @@ public class JavaFile {
          */
         private void calculate() {
 
-            Set<JavaFile> currentTopFiveNeighbors;
-
             /* Calculate similarity */
             AbstractQueue<Similarity> similarityOfFiles = calculateSimilarities();
 
@@ -204,13 +204,14 @@ public class JavaFile {
 
                 if (topFiveNeighbors.isEmpty())
                     return;
-                else
-                    currentTopFiveNeighbors = new HashSet<>(topFiveNeighbors);
 
                 /* Find Top 5 Neighbors */
                 topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
 
                 if (Objects.isNull(topFiveNeighbors))
+                    return;
+
+                if (JavaFile.this.getOldQualityMetrics().equals(JavaFile.this.getQualityMetrics()))
                     return;
 
             } else {
@@ -221,16 +222,15 @@ public class JavaFile {
                 if (Objects.isNull(topFiveNeighbors))
                     return;
 
-                currentTopFiveNeighbors = new HashSet<>(topFiveNeighbors);
-            }
+                /* Get optimal metrics & normalize (add one smoothing) */
+                this.optimalMetrics = getOptimalMetrics(topFiveNeighbors);
+                this.optimalMetrics.normalize();
 
-            /* Get optimal metrics & normalize (add one smoothing) */
-            QualityMetrics optimalMetrics = getOptimalMetrics(currentTopFiveNeighbors);
-            optimalMetrics.normalize();
+            }
 
 			/* Calculate the interest per LOC
                Get difference optimal to actual */
-            this.setSumInterestPerLOC(this.calculateInterestPerLoc(JavaFile.this, optimalMetrics));
+            this.setSumInterestPerLOC(this.calculateInterestPerLoc(JavaFile.this, this.optimalMetrics));
 
             this.setAvgInterestPerLOC(this.getSumInterestPerLOC() / 10);
 
