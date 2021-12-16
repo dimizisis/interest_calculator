@@ -95,6 +95,7 @@ public final class QualityMetrics {
         this.NOM = 0.0;
         this.MPC = 0.0;
         this.DAC = 0;
+        this.CBO = 0.0;
         this.SIZE1 = 0;
         this.SIZE2 = 0;
         this.oldSIZE1 = 0;
