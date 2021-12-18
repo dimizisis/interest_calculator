@@ -134,7 +134,7 @@ public class RetrieveFromDB {
                 Double kappa = resultSet.getDouble("kappa");
                 Array classesArr = resultSet.getArray("class_names");
                 Set<String> classes = Set.of((String[]) (classesArr != null ? classesArr.getArray() : new HashSet<>()));
-                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(sha, classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, oldSize1, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa, classes, new Revision(sha, revisionCount)));
+                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(new Revision(sha, revisionCount), classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, oldSize1, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa, classes, new Revision(sha, revisionCount)));
             }
         } catch (SQLException e) {
             System.out.println(e);
