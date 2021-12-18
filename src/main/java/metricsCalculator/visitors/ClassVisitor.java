@@ -4,6 +4,7 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.IfStmt;
@@ -262,9 +263,10 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      */
     private int calculateSize1(TypeDeclaration<?> javaClass) {
         int size = 0;
-        for (BodyDeclaration<?> member : javaClass.getMembers())
+        for (BodyDeclaration<?> member : javaClass.getMembers()) {
             if (member.getBegin().isPresent() && member.getEnd().isPresent())
                 size += (member.getEnd().get().line - member.getBegin().get().line == 0) ? 1 : member.getEnd().get().line - member.getBegin().get().line;
+        }
         return size;
     }
 

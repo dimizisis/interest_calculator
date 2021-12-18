@@ -359,7 +359,7 @@ public class Main {
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        appendMetrics(column, jf, currentRevision);
+                        appendMetrics(column, jf);
                         jf.addClassName(className);
                         jf.calculateInterest();
                     }
@@ -460,6 +460,20 @@ public class Main {
             jf.getClasses().clear();
             jf.getQualityMetrics().zero();
             jf.getQualityMetrics().setRevision(new Revision(revision.getSha(), revision.getRevisionCount()));
+            jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
+            jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
+            jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
+            jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
+            jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
+            jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
+            jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[8]));
+            jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[9]));
+            jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[10]));
+            jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
+            jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
+            jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
+            jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
+            jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
         } else {
             jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
             jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));

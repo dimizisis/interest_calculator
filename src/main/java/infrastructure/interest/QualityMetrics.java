@@ -58,7 +58,7 @@ public final class QualityMetrics {
     }
 
     public QualityMetrics(Revision revision) {
-        this.revision = revision;
+        this.revision = new Revision(revision.getSha(), revision.getRevisionCount());
         this.classesNum = 0;
         this.complexity = 0.0;
         this.DIT = 0;

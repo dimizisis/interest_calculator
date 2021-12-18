@@ -138,6 +138,7 @@ public class MetricsCalculator {
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(javaParserTypeSolver);
         StaticJavaParser
                 .getConfiguration()
+                .setAttributeComments(false)
                 .setSymbolResolver(symbolSolver);
     }
 
