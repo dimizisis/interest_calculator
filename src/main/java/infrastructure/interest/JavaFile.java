@@ -15,7 +15,7 @@ public class JavaFile {
     public JavaFile(String path, Revision revision) {
         this.path = path;
         this.classes = new HashSet<>();
-        this.qualityMetrics = new QualityMetrics();
+        this.qualityMetrics = new QualityMetrics(revision);
         this.interest = new TDInterest();
         this.setK(new Kappa(revision));
     }
