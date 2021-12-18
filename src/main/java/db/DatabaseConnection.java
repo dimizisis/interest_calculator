@@ -11,24 +11,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class DatabaseConnection {
-    private static final Properties properties;
 
-    static {
-        properties = new Properties();
-        try {
-            Path temp = Files.createTempFile("db", ".properties");
-            Files.copy(Objects.requireNonNull(DatabaseConnection.class.getClassLoader().getResourceAsStream("database.properties")), temp, StandardCopyOption.REPLACE_EXISTING);
-            FileInputStream input = new FileInputStream(temp.toFile());
-            properties.load(input);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static String databaseDriver = properties.getProperty("driver");
-    private static String databaseUrl = properties.getProperty("url");
-    private static String databaseUsername = properties.getProperty("user");
-    private static String databasePassword = properties.getProperty("pass");
+    private static String databaseDriver = "org.postgresql.Driver";
+    private static String databaseUrl = "";
+    private static String databaseUsername = "";
+    private static String databasePassword = "";
 
     private static Connection connection = null;
 
@@ -41,6 +28,7 @@ public class DatabaseConnection {
             return connection;
         return createConnection();
     }
+
 
     private static Connection createConnection() {
         try {
