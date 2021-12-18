@@ -359,12 +359,9 @@ public class Main {
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        if (jf.containsClass(className)) {
-                            appendMetrics(column, jf);
-                        } else {
-                            jf.addClassName(className);
-                            appendMetrics(column, jf);
-                        }
+                        appendMetrics(column, jf, currentRevision);
+                        jf.addClassName(className);
+                        jf.calculateInterest();
                     }
                 }
             }
@@ -417,12 +414,8 @@ public class Main {
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        if (jf.containsClass(className)) {
-                            appendMetrics(column, jf, currentRevision);
-                        } else if (!jf.containsClass(className)) {
-                            jf.addClassName(className);
-                            appendMetrics(column, jf, currentRevision);
-                        }
+                        appendMetrics(column, jf, currentRevision);
+                        jf.addClassName(className);
                         jf.calculateInterest();
                     }
                 }
@@ -464,6 +457,7 @@ public class Main {
     private static void appendMetrics(String[] calcEntries, JavaFile jf, Revision revision) {
         jf.setOldQualityMetrics(jf.getQualityMetrics());
         if (!jf.getQualityMetrics().getRevision().equals(revision)) {
+            jf.getClasses().clear();
             jf.getQualityMetrics().zero();
             jf.getQualityMetrics().setRevision(new Revision(revision.getSha(), revision.getRevisionCount()));
         } else {
