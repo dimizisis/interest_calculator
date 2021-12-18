@@ -19,7 +19,7 @@ public class JavaFile {
         this.path = path;
         this.classes = new HashSet<>();
         this.oldQualityMetrics = new QualityMetrics();
-        this.qualityMetrics = new QualityMetrics();
+        this.qualityMetrics = new QualityMetrics(revision);
         this.interest = new TDInterest();
         this.revision = revision;
         this.setK(new Kappa(revision));
@@ -33,6 +33,10 @@ public class JavaFile {
         this.revision = revision;
         this.setK(new Kappa(revision, kappa));
         this.setClasses(classes);
+    }
+
+    public void zeroMetrics() {
+        this.getQualityMetrics().zero();
     }
 
     public void addClassName(String className) {
@@ -142,7 +146,7 @@ public class JavaFile {
             this.oldQualityMetrics.setComplexity(qualityMetrics.getComplexity());
             this.oldQualityMetrics.setOldSIZE1(qualityMetrics.getOldSIZE1());
             this.oldQualityMetrics.setClassesNum(qualityMetrics.getClassesNum());
-            this.oldQualityMetrics.setSha(qualityMetrics.getSha());
+            this.oldQualityMetrics.setRevision(new Revision(getRevision().getSha(), getRevision().getRevisionCount()));
         }
     }
 

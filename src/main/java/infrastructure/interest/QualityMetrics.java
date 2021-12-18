@@ -1,10 +1,12 @@
 package infrastructure.interest;
 
+import infrastructure.Revision;
+
 import java.util.Objects;
 
 public final class QualityMetrics {
 
-    private String sha;
+    private Revision revision;
     private Integer classesNum;
     private Double complexity;
     private Integer DIT;
@@ -20,8 +22,8 @@ public final class QualityMetrics {
     private Integer SIZE1;
     private Integer SIZE2;
 
-    public QualityMetrics(String sha, Integer classesNum, Double complexity, Integer DIT, Integer NOCC, Double RFC, Double LCOM, Double WMC, Double NOM, Double MPC, Integer DAC, Integer oldSIZE1, Double CBO, Integer SIZE1, Integer SIZE2) {
-        this.sha = sha;
+    public QualityMetrics(Revision revision, Integer classesNum, Double complexity, Integer DIT, Integer NOCC, Double RFC, Double LCOM, Double WMC, Double NOM, Double MPC, Integer DAC, Integer oldSIZE1, Double CBO, Integer SIZE1, Integer SIZE2) {
+        this.revision = revision;
         this.classesNum = classesNum;
         this.complexity = complexity;
         this.DIT = DIT;
@@ -39,7 +41,7 @@ public final class QualityMetrics {
     }
 
     public QualityMetrics() {
-        this.sha = sha;
+        this.revision = new Revision();
         this.classesNum = 0;
         this.complexity = 0.0;
         this.DIT = 0;
@@ -55,8 +57,8 @@ public final class QualityMetrics {
         this.oldSIZE1 = 0;
     }
 
-    public QualityMetrics(String sha) {
-        this.sha = sha;
+    public QualityMetrics(Revision revision) {
+        this.revision = revision;
         this.classesNum = 0;
         this.complexity = 0.0;
         this.DIT = 0;
@@ -177,8 +179,8 @@ public final class QualityMetrics {
         return CBO;
     }
 
-    public String getSha() {
-        return this.sha;
+    public Revision getRevision() {
+        return this.revision;
     }
 
     public void setClassesNum(Integer classesNum) {
@@ -237,8 +239,8 @@ public final class QualityMetrics {
         this.CBO = CBO;
     }
 
-    public void setSha(String sha) {
-        this.sha = sha;
+    public void setRevision(Revision revision) {
+        this.revision = revision;
     }
 
     @Override
