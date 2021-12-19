@@ -56,6 +56,7 @@ public class Main {
             System.out.printf("Calculating metrics for commit %s (%d)...\n", Globals.getCurrentSha(), Globals.getRevisionCount());
             setMetrics(Globals.getProjectPath());
             System.out.println("Calculated metrics for all files from first commit!");
+            Globals.getJavaFiles().forEach(JavaFile::calculateInterest);
             insertFirstData();
             DatabaseConnection.getConnection().commit();
             Globals.setRevisionCount(Globals.getRevisionCount() + 1);
@@ -75,6 +76,7 @@ public class Main {
                         System.out.println("Analyzing new/modified commit files...");
                         setMetrics(Arrays.asList(diffEntries));
                         System.out.println("Calculated metrics for all files!");
+                        Globals.getJavaFiles().forEach(JavaFile::calculateInterest);
                         insertData();
                     }
                     DatabaseConnection.getConnection().commit();
@@ -257,7 +259,6 @@ public class Main {
                     if (Objects.nonNull(jf)) {
                         appendMetrics(column, jf, true);
                         jf.addClassName(className);
-                        jf.calculateInterest();
                     }
                 }
             }
@@ -292,14 +293,12 @@ public class Main {
                     jf = new JavaFile(filePath);
                     jf.addClassName(className);
                     registerMetrics(column, jf);
-                    jf.calculateInterest();
                     Globals.addJavaFile(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         appendMetrics(column, jf, false);
                         jf.addClassName(className);
-                        jf.calculateInterest();
                     }
                 }
             }
