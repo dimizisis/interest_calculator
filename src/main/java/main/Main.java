@@ -96,7 +96,6 @@ public class Main {
             System.out.printf("Calculating metrics for commit %s (%d)...\n", currentRevision.getSha(), currentRevision.getRevisionCount());
             setMetrics(project, currentRevision);
             System.out.println("Calculated metrics for all files from first commit!");
-            Globals.getJavaFiles().forEach(JavaFile::calculateInterest);
             InsertToDB.insertProjectToDatabase(project);
             insertData(project, currentRevision);
             DatabaseConnection.getConnection().commit();
@@ -120,7 +119,6 @@ public class Main {
                 System.out.println("Analyzing new/modified commit files...");
                 setMetrics(project, currentRevision, responseEntities[0]);
                 System.out.println("Calculated metrics for all files!");
-                Globals.getJavaFiles().forEach(JavaFile::calculateInterest);
                 insertData(project, currentRevision);
             } catch (Exception ignored) {}
             DatabaseConnection.getConnection().commit();
@@ -396,25 +394,30 @@ public class Main {
         String st = MetricsCalculator.printResults();
         MetricsCalculator.reset();
         String[] s = st.split("\\r?\\n");
+        Set<JavaFile> toCalculate = new HashSet<>();
         try {
             for (int i = 1; i < s.length; ++i) {
                 String[] column = s[i].split(";");
                 String filePath = column[0];
                 String className = column[1];
+
                 JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                     jf = new JavaFile(filePath, currentRevision);
                     jf.addClassName(className);
                     registerMetrics(column, jf);
                     Globals.addJavaFile(jf);
+                    toCalculate.add(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
                         appendMetrics(column, jf, currentRevision);
                         jf.addClassName(className);
+                        toCalculate.add(jf);
                     }
                 }
             }
+            toCalculate.forEach(JavaFile::calculateInterest);
         } catch (Exception ignored) {
         }
     }
