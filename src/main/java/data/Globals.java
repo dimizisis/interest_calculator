@@ -5,8 +5,6 @@ import org.eclipse.jgit.api.Git;
 import org.refactoringminer.api.GitHistoryRefactoringMiner;
 import org.refactoringminer.rm1.GitHistoryRefactoringMinerImpl;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 

@@ -35,10 +35,6 @@ public class JavaFile {
         this.setClasses(classes);
     }
 
-    public void zeroMetrics() {
-        this.getQualityMetrics().zero();
-    }
-
     public void addClassName(String className) {
         classes.add(className);
     }
@@ -207,6 +203,10 @@ public class JavaFile {
             if (similarityOfFiles.isEmpty())
                 return;
 
+            if (getRevision().getRevisionCount().equals(176)) {
+                System.out.println("hehe");
+            }
+
             if (Globals.getHasRefactoring()) {
 
                 if (topFiveNeighbors.isEmpty())
@@ -217,10 +217,6 @@ public class JavaFile {
 
                 if (Objects.isNull(topFiveNeighbors))
                     return;
-
-                if (revision.getRevisionCount() == 555) {
-                    System.out.println("hehe");
-                }
 
                 if (JavaFile.this.getOldQualityMetrics().equals(JavaFile.this.getQualityMetrics()))
                     return;
