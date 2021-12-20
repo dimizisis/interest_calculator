@@ -49,10 +49,10 @@ public class JavaFile {
                 .detectAtCommit(Objects.requireNonNull(Globals.getGit()).getRepository(), JavaFile.this.getRevision().getSha(), new CustomRefactoringHandler(JavaFile.this.getPath()));
         if (Globals.getHasRefactoring()) {
             this.getInterest().calculate();
-            this.getK().update(this.getQualityMetrics().getOldSIZE1());
+            this.getK().update(this.getOldQualityMetrics().getSIZE1());
         }
         else {
-            this.getK().update(this.getQualityMetrics().getOldSIZE1());
+            this.getK().update(this.getOldQualityMetrics().getSIZE1());
             this.getInterest().calculate();
         }
         Globals.resetHasRefactoring();
