@@ -63,10 +63,7 @@ public class Main {
                 try {
                     DiffEntry[] diffEntries = getResponseEntitiesBetweenCommits(Globals.getProjectURL(), commitIds.get(i - 1), commitIds.get(i));
                     if (Objects.isNull(diffEntries) || diffEntries.length == 0) {
-                        if (Globals.getJavaFiles().isEmpty())
-                            InsertToDB.insertEmpty();
-                        else
-                            insertData();
+                        insertData();
                         System.out.println("Calculated metrics for all files!");
                     } else {
                         System.out.println("Analyzing new/modified commit files...");
@@ -74,10 +71,9 @@ public class Main {
                         System.out.println("Calculated metrics for all files!");
                         insertData();
                     }
-                    DatabaseConnection.getConnection().commit();
-                } catch (Exception exception) {
-                    DatabaseConnection.getConnection().commit();
+                } catch (Exception ignored) {
                 }
+                DatabaseConnection.getConnection().commit();
                 Globals.setRevisionCount(Globals.getRevisionCount() + 1);
             }
             System.out.printf("Finished analysing %d revisions.\n", Globals.getRevisionCount() - 1);
