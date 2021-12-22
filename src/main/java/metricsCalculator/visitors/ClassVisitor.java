@@ -43,8 +43,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
             this.myFile = cu.getStorage().get().getPath().toString().replace("\\", "/").replace(MetricsCalculator.getFullPathOfProject(), "").substring(1);
             this.myClassName = jc.resolve().getQualifiedName();
             if (jc.isNestedType())
-                this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)","!");
-        } catch (Exception e) {
+                this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)", "!");
+        } catch (Throwable e) {
             return;
         }
         this.classMetrics = this.classMetricsContainer
@@ -101,7 +101,9 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                     .filter(superClass -> {
                         try {
                             return this.withinAnalysisBounds(superClass);
-                        } catch (Throwable t) { return false; }
+                        } catch (Throwable t) {
+                            return false;
+                        }
                     }).forEach(superClassName -> {
                         this.classMetricsContainer.getMetrics(superClassName).incNoc();
                         registerCoupling(superClassName);
@@ -133,10 +135,12 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                     .map(extendedType -> {
                         try {
                             return extendedType.resolve().getQualifiedName();
-                        } catch (UnsolvedSymbolException e) { return null; }
+                        } catch (UnsolvedSymbolException e) {
+                            return null;
+                        }
                     })
                     .collect(Collectors.toList());
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
     }
@@ -150,7 +154,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
     private String getPackageName(TypeDeclaration<?> javaClass) {
         try {
             return javaClass.resolve().getPackageName();
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -190,7 +194,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                     try {
                         ResolvedReferenceType ancestor = anInterface.getAllAncestors().get(superClass.getAllAncestors().size() - 1);
                         tmpDit += calculateDit(anInterface.getQualifiedName(), ancestor);
-                    } catch (Exception ignored) {
+                    } catch (Throwable ignored) {
                     }
                 }
 
@@ -294,7 +298,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
             String typeName;
             try {
                 typeName = field.getElementType().resolve().describe();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 continue;
             }
             if (withinAnalysisBounds(typeName)) {
@@ -312,7 +316,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                         ++dac;
                     } catch (NullPointerException ignored) {
                     }
-                } catch (Exception ignored) {
+                } catch (Throwable ignored) {
                 }
             }
         }
@@ -358,12 +362,13 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         try {
             registerCoupling(method.resolve().getReturnType().describe());
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
         }
 
         try {
             incRFC(method.resolve().getQualifiedName());
-        } catch (UnsolvedSymbolException ignored) {}
+        } catch (UnsolvedSymbolException ignored) {
+        }
         investigateExceptions(method);
         investigateModifiers(method);
         investigateParameters(method);
@@ -383,7 +388,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
             method.findAll(NameExpr.class).forEach(expr -> classFields.forEach(classField -> classField.getVariables()
                     .stream().filter(var -> var.getNameAsString().equals(expr.getNameAsString()))
                     .forEach(var -> registerFieldAccess(expr.getNameAsString()))));
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
         }
     }
 
@@ -393,11 +398,13 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      * @param method the method we are referring to
      */
     private void investigateExceptions(MethodDeclaration method) {
-        try {
-            method.resolve().getSpecifiedExceptions()
-                    .forEach(exception -> registerCoupling(exception.describe()));
-        } catch (Exception ignored) {
-        }
+        method.resolve().getSpecifiedExceptions()
+                .forEach(exception -> {
+                    try {
+                        registerCoupling(exception.describe());
+                    } catch (Throwable ignored) {
+                    }
+                });
     }
 
     /**
@@ -411,7 +418,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                     .stream()
                     .filter(mod -> mod.getKeyword().equals(Modifier.Keyword.PUBLIC))
                     .forEach(mod -> this.classMetrics.incNpm());
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
         }
     }
 
@@ -421,11 +428,13 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      * @param method the method we are referring to
      */
     private void investigateParameters(MethodDeclaration method) {
-        try {
-            method.getParameters()
-                    .forEach(p -> registerCoupling(p.getType().resolve().describe()));
-        } catch (Exception ignored) {
-        }
+        method.getParameters()
+                .forEach(p -> {
+                    try {
+                        registerCoupling(p.getType().resolve().describe());
+                    } catch (Throwable ignored) {
+                    }
+                });
     }
 
     /**
@@ -433,16 +442,16 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *
      * @param method the method we are referring to
      */
-    private void investigateInvocation(MethodDeclaration method){
+    private void investigateInvocation(MethodDeclaration method) {
         try {
             for (MethodCallExpr methodCallExpr : method.findAll(MethodCallExpr.class)) {
                 try {
                     ResolvedMethodDeclaration resolvedMethodDeclaration = methodCallExpr.resolve();
                     registerMethodInvocation(resolvedMethodDeclaration.getQualifiedName().substring(0, resolvedMethodDeclaration.getQualifiedName().lastIndexOf(".")), resolvedMethodDeclaration.getQualifiedSignature());
-                } catch (NoClassDefFoundError ignored) {
+                } catch (Throwable ignored) {
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
         }
     }
 
@@ -453,8 +462,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *                  the class we are referring to
      */
     private void registerCoupling(String className) {
-        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.')+1) : className.substring(className.lastIndexOf('.'));
-        String simpleMyClassName = this.myClassName.contains(".") ? this.myClassName.substring(this.myClassName.lastIndexOf('.')+1) : this.myClassName.substring(this.myClassName.lastIndexOf('.'));
+        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.') + 1) : className.substring(className.lastIndexOf('.'));
+        String simpleMyClassName = this.myClassName.contains(".") ? this.myClassName.substring(this.myClassName.lastIndexOf('.') + 1) : this.myClassName.substring(this.myClassName.lastIndexOf('.'));
 
         if (this.compilationUnit.getClassByName(simpleClassName).isPresent() && this.compilationUnit.getClassByName(simpleMyClassName).isPresent()) {
             ClassOrInterfaceDeclaration cl = this.compilationUnit.getClassByName(simpleClassName).get();
@@ -535,7 +544,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
             try {
                 if (withinAnalysisBounds(resolvedReferenceType.getQualifiedName()))
                     validInterfaces.add(resolvedReferenceType);
-            } catch (Exception ignored) {
+            } catch (Throwable ignored) {
             }
         }
         return validInterfaces;
@@ -574,14 +583,15 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         String superClassName;
         try {
             superClassName = javaClass.getExtendedTypes().get(0).resolve().getQualifiedName();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             superClassName = null;
         }
 
         try {
             calculateDit(javaClass.resolve().getQualifiedName(), Objects.nonNull(superClassName) && javaClass.resolve().getAncestors().size() != 0
                     ? javaClass.getExtendedTypes().get(0).resolve() : null);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
 
         this.classMetrics.setDac(calculateDac(javaClass));
         this.classMetrics.setSize2(calculateSize2(javaClass));
