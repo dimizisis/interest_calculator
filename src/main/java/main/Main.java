@@ -242,14 +242,12 @@ public class Main {
                 JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                     jf = new JavaFile(filePath);
-                    jf.addClassName(className);
-                    registerMetrics(column, jf);
+                    registerMetrics(column, jf, className);
                     Globals.addJavaFile(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        appendMetrics(column, jf, true);
-                        jf.addClassName(className);
+                        appendMetrics(column, jf, className, true);
                     }
                 }
             }
@@ -284,15 +282,13 @@ public class Main {
                 JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                     jf = new JavaFile(filePath);
-                    jf.addClassName(className);
-                    registerMetrics(column, jf);
+                    registerMetrics(column, jf, className);
                     Globals.addJavaFile(jf);
                     toCalculate.add(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        appendMetrics(column, jf, false);
-                        jf.addClassName(className);
+                        appendMetrics(column, jf, className, false);
                         toCalculate.add(jf);
                     }
                 }
@@ -302,7 +298,7 @@ public class Main {
         }
     }
 
-    private static void registerMetrics(String[] calcEntries, JavaFile jf) {
+    private static void registerMetrics(String[] calcEntries, JavaFile jf, String className) {
         jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
         jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
@@ -316,6 +312,7 @@ public class Main {
         jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
         jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
         jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
+        jf.addClassName(className);
         jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
     }
 
@@ -325,11 +322,12 @@ public class Main {
      * @param calcEntries entries taken from MetricsCalculator's results
      * @param jf          the java file we are registering metrics to
      */
-    private static void appendMetrics(String[] calcEntries, JavaFile jf, boolean first) {
+    private static void appendMetrics(String[] calcEntries, JavaFile jf, String className, boolean first) {
         if (!first) {
             if (!jf.getQualityMetrics().getSha().equals(Globals.getCurrentSha())) {
                 jf.getQualityMetrics().zero();
                 jf.getQualityMetrics().setSha(Globals.getCurrentSha());
+                jf.getClasses().clear();
             }
         }
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
@@ -347,6 +345,7 @@ public class Main {
         jf.getQualityMetrics().setSIZE1(jf.getQualityMetrics().getSIZE1() + Integer.parseInt(calcEntries[11]));
         jf.getQualityMetrics().setSIZE2(jf.getQualityMetrics().getSIZE2() + Integer.parseInt(calcEntries[12]));
         jf.getQualityMetrics().setCBO(jf.getQualityMetrics().getCBO() + Double.parseDouble(calcEntries[13]));
+        jf.addClassName(className);
         jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
     }
 }
