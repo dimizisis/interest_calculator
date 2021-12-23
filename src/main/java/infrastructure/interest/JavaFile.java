@@ -203,10 +203,6 @@ public class JavaFile {
             if (similarityOfFiles.isEmpty())
                 return;
 
-            if (getRevision().getRevisionCount().equals(176)) {
-                System.out.println("hehe");
-            }
-
             if (Globals.getHasRefactoring()) {
 
                 if (topFiveNeighbors.isEmpty())

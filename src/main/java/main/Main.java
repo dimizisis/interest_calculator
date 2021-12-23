@@ -358,8 +358,8 @@ public class Main {
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        appendMetrics(column, jf);
                         jf.addClassName(className);
+                        appendMetrics(column, jf);
                     }
                 }
             }
@@ -413,8 +413,8 @@ public class Main {
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        appendMetrics(column, jf, currentRevision);
                         jf.addClassName(className);
+                        appendMetrics(column, jf, currentRevision, className);
                         toCalculate.add(jf);
                     }
                 }
@@ -454,9 +454,10 @@ public class Main {
      * @param calcEntries entries taken from MetricsCalculator's results
      * @param jf          the java file we are registering metrics to
      */
-    private static void appendMetrics(String[] calcEntries, JavaFile jf, Revision revision) {
+    private static void appendMetrics(String[] calcEntries, JavaFile jf, Revision revision, String className) {
         jf.setOldQualityMetrics(jf.getQualityMetrics());
         if (!jf.getQualityMetrics().getRevision().equals(revision)) {
+            jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
             jf.getClasses().clear();
             jf.getQualityMetrics().zero();
             jf.getQualityMetrics().setRevision(new Revision(revision.getSha(), revision.getRevisionCount()));
@@ -473,6 +474,7 @@ public class Main {
             jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
             jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
             jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
+            jf.getClasses().add(className);
             jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
         } else {
             jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
