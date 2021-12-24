@@ -452,9 +452,8 @@ public class Main {
      * @param jf          the java file we are registering metrics to
      */
     private static void appendMetrics(String[] calcEntries, JavaFile jf, Revision revision, String className) {
-        jf.setOldQualityMetrics(jf.getQualityMetrics());
         if (!jf.getQualityMetrics().getRevision().equals(revision)) {
-            jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
+            jf.setOldQualityMetrics(jf.getQualityMetrics());
             jf.setClasses(new HashSet<>());
             jf.getQualityMetrics().zero();
             jf.getQualityMetrics().setRevision(new Revision(revision.getSha(), revision.getRevisionCount()));
