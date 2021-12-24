@@ -327,7 +327,7 @@ public class Main {
             if (!jf.getQualityMetrics().getSha().equals(Globals.getCurrentSha())) {
                 jf.getQualityMetrics().zero();
                 jf.getQualityMetrics().setSha(Globals.getCurrentSha());
-                jf.getClasses().clear();
+                jf.setClasses(new HashSet<>());
             }
         }
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
