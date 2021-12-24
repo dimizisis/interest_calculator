@@ -46,7 +46,7 @@ public class JavaFile {
     public void calculateInterest() {
         Globals
                 .getMiner()
-                .detectAtCommit(Objects.requireNonNull(Globals.getGit()).getRepository(), JavaFile.this.getRevision().getSha(), new CustomRefactoringHandler(JavaFile.this.getPath()));
+                .detectAtCommit(Objects.requireNonNull(Globals.getGit()).getRepository(), JavaFile.this.getQualityMetrics().getRevision().getSha(), new CustomRefactoringHandler(JavaFile.this.getPath()));
         if (Globals.getHasRefactoring()) {
             this.getInterest().calculate();
             this.getK().update(this.getOldQualityMetrics().getSIZE1());

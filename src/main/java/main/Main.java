@@ -455,7 +455,7 @@ public class Main {
         jf.setOldQualityMetrics(jf.getQualityMetrics());
         if (!jf.getQualityMetrics().getRevision().equals(revision)) {
             jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
-            jf.getClasses().clear();
+            jf.setClasses(new HashSet<>());
             jf.getQualityMetrics().zero();
             jf.getQualityMetrics().setRevision(new Revision(revision.getSha(), revision.getRevisionCount()));
             jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
