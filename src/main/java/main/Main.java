@@ -26,6 +26,12 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 
 public class Main {
     public static void main(String[] args) throws Exception {
+        
+        DatabaseConnection.setDatabaseDriver(args[2]);
+        DatabaseConnection.setDatabaseUrl(args[3]);
+        DatabaseConnection.setDatabaseUsername(args[4]);
+        DatabaseConnection.setDatabasePassword(args[5]);
+
         FileInputStream file = new FileInputStream(args[1]);
         XSSFWorkbook xSSFWorkbook = new XSSFWorkbook(file);
         Sheet sheet = xSSFWorkbook.getSheetAt(0);

@@ -1,18 +1,15 @@
 package db;
 
-import java.io.FileInputStream;
-import java.nio.file.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class DatabaseConnection {
 
-    private static String databaseDriver = "org.postgresql.Driver";
+    private static String databaseDriver = "";
     private static String databaseUrl = "";
     private static String databaseUsername = "";
     private static String databasePassword = "";
@@ -55,5 +52,37 @@ public class DatabaseConnection {
                 logger.log(Level.SEVERE, "Exception was thrown: ", e);
             }
         }
+    }
+
+    public static String getDatabaseDriver() {
+        return databaseDriver;
+    }
+
+    public static void setDatabaseDriver(String databaseDriver) {
+        DatabaseConnection.databaseDriver = databaseDriver;
+    }
+
+    public static String getDatabaseUrl() {
+        return databaseUrl;
+    }
+
+    public static void setDatabaseUrl(String databaseUrl) {
+        DatabaseConnection.databaseUrl = databaseUrl;
+    }
+
+    public static String getDatabaseUsername() {
+        return databaseUsername;
+    }
+
+    public static void setDatabaseUsername(String databaseUsername) {
+        DatabaseConnection.databaseUsername = databaseUsername;
+    }
+
+    public static String getDatabasePassword() {
+        return databasePassword;
+    }
+
+    public static void setDatabasePassword(String databasePassword) {
+        DatabaseConnection.databasePassword = databasePassword;
     }
 }
