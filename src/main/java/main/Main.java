@@ -25,6 +25,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.diff.RenameDetector;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
@@ -238,15 +239,18 @@ public class Main {
                 Set<DiffEntry> modifyDiffEntries = new HashSet<>();
                 Set<DiffEntry> renameDiffEntries = new HashSet<>();
                 Set<DiffEntry> deleteDiffEntries = new HashSet<>();
-                for (org.eclipse.jgit.diff.DiffEntry entry : diffFormatter.scan(diffWith, headCommit)) {
+                RenameDetector renameDetector = new RenameDetector(git.getRepository());
+                renameDetector.addAll(diffFormatter.scan(diffWith, headCommit));
+                for (org.eclipse.jgit.diff.DiffEntry entry : renameDetector.compute()) {
                     if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.ADD) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.COPY) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         addDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
                     else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.MODIFY) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         modifyDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
-                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.RENAME) && entry.getNewPath().toLowerCase().endsWith(".java"))
-                        renameDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
-                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) && entry.getOldPath().toLowerCase().endsWith(".java"))
                         deleteDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.RENAME) && entry.getNewPath().toLowerCase().endsWith(".java")) {
+                        renameDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    }
                 }
                 principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), addDiffEntries, modifyDiffEntries, renameDiffEntries, deleteDiffEntries);
             } catch (IOException e) {
@@ -324,8 +328,8 @@ public class Main {
             entity.getRenameDiffEntries()
                     .forEach(diffEntry -> {
                         for (JavaFile javaFile : Globals.getJavaFiles()) {
-                            if (javaFile.getPath().endsWith(diffEntry.getOldFilePath()))
-                                javaFile.setPath(javaFile.getPath().replace(diffEntry.getOldFilePath(), diffEntry.getNewFilePath()));
+                            if (javaFile.getPath().equals(diffEntry.getOldFilePath()))
+                                javaFile.setPath(diffEntry.getNewFilePath());
                         }
                     });
     }
