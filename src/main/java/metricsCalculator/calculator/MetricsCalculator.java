@@ -16,6 +16,7 @@ import metricsCalculator.containers.PackageMetricsContainer;
 import metricsCalculator.containers.ProjectMetricsContainer;
 import metricsCalculator.metrics.ProjectMetrics;
 import metricsCalculator.output.PrintResults;
+import metricsCalculator.visitors.ChildrenVisitor;
 import metricsCalculator.visitors.ClassVisitor;
 
 import java.io.File;
@@ -202,9 +203,7 @@ public class MetricsCalculator {
                         .filter(res -> res.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").endsWith(filePath))
                         .forEach(res -> {
                             CompilationUnit cu = res.getResult().get();
-                            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
-                                analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
-                            });
+                            analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
                         });
             } catch (IOException ignored) {}
         });
@@ -223,11 +222,15 @@ public class MetricsCalculator {
                         .filter(res -> res.getResult().isPresent())
                         .filter(res -> res.getResult().get().getStorage().isPresent())
                         .filter(res -> jfs.stream().map(JavaFile::getPath).collect(Collectors.toList()).contains(res.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(getFullPathOfProject(), "").substring(1)))
+                        .forEach(res -> analyzeCompilationUnit(res.getResult().get(), sourceRoot.getRoot().toString().replace("\\", "/")));
+
+                sourceRoot.tryToParse()
+                        .stream()
+                        .filter(res -> res.getResult().isPresent())
+                        .filter(res -> res.getResult().get().getStorage().isPresent())
                         .forEach(res -> {
                             CompilationUnit cu = res.getResult().get();
-                            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
-                                analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
-                            });
+                            findNocc(cu);
                         });
             } catch (IOException ignored) {
             }
@@ -279,6 +282,20 @@ public class MetricsCalculator {
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
             try {
                 c.accept(new ClassVisitor(c, cu, sourceRoot, getClassMetricsContainer()), null);
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    /**
+     * Finds NOCC (Number of Class Children) for selected Compilation Units
+     *
+     * @param cu         the compilation unit given
+     */
+    private static void findNocc(CompilationUnit cu) {
+        cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
+            try {
+                c.accept(new ChildrenVisitor(), null);
             } catch (Exception ignored) {
             }
         });

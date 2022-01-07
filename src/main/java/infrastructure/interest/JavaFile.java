@@ -128,6 +128,7 @@ public class JavaFile {
 
     public void setOldQualityMetrics(QualityMetrics qualityMetrics) {
         if (Objects.nonNull(qualityMetrics)) {
+            this.oldQualityMetrics.setClassChildren(qualityMetrics.getClassChildren());
             this.oldQualityMetrics.setDAC(qualityMetrics.getDAC());
             this.oldQualityMetrics.setDIT(qualityMetrics.getDIT());
             this.oldQualityMetrics.setLCOM(qualityMetrics.getLCOM());

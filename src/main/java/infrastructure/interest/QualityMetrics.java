@@ -2,7 +2,9 @@ package infrastructure.interest;
 
 import infrastructure.Revision;
 
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 public final class QualityMetrics {
 
@@ -21,6 +23,7 @@ public final class QualityMetrics {
     private Double CBO;
     private Integer SIZE1;
     private Integer SIZE2;
+    private Set<String> classChildren;
 
     public QualityMetrics(Revision revision, Integer classesNum, Double complexity, Integer DIT, Integer NOCC, Double RFC, Double LCOM, Double WMC, Double NOM, Double MPC, Integer DAC, Integer oldSIZE1, Double CBO, Integer SIZE1, Integer SIZE2) {
         this.revision = revision;
@@ -38,6 +41,7 @@ public final class QualityMetrics {
         this.CBO = CBO;
         this.SIZE1 = SIZE1;
         this.SIZE2 = SIZE2;
+        this.classChildren = new HashSet<>();
     }
 
     public QualityMetrics() {
@@ -55,6 +59,7 @@ public final class QualityMetrics {
         this.SIZE1 = 0;
         this.SIZE2 = 0;
         this.oldSIZE1 = 0;
+        this.classChildren = new HashSet<>();
     }
 
     public QualityMetrics(Revision revision) {
@@ -72,6 +77,7 @@ public final class QualityMetrics {
         this.SIZE1 = 0;
         this.SIZE2 = 0;
         this.oldSIZE1 = 0;
+        this.classChildren = new HashSet<>();
     }
 
     public void normalize() {
@@ -110,7 +116,6 @@ public final class QualityMetrics {
         this.classesNum = 0;
         this.complexity = 0.0;
         this.DIT = 0;
-        this.NOCC = 0;
         this.RFC = 0.0;
         this.LCOM = 0.0;
         this.WMC = 0.0;
@@ -121,6 +126,19 @@ public final class QualityMetrics {
         this.SIZE1 = 0;
         this.SIZE2 = 0;
         this.oldSIZE1 = 0;
+    }
+
+    public Set<String> getClassChildren() {
+        return classChildren;
+    }
+
+    public void setClassChildren(Set<String> classChildren) {
+        this.classChildren = classChildren;
+    }
+
+    public void addClassChildren(String className) {
+        this.getClassChildren().add(className);
+        this.setNOCC(this.getClassChildren().size());
     }
 
     public Integer getClassesNum() {

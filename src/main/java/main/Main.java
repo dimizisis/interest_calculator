@@ -25,9 +25,8 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffFormatter;
-import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.diff.RenameDetector;
 import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 
 import static db.RetrieveFromDB.*;
@@ -55,6 +54,8 @@ public class Main {
 
         Project project = new Project(args[0], args[5]);
 
+        int N = Integer.parseInt(args[6]);
+
         try {
             deleteSourceCode(new File(project.getClonePath()));
         } catch (Exception ignored) {
@@ -70,9 +71,11 @@ public class Main {
         if (commitIds.isEmpty())
             return;
         Collections.reverse(commitIds);
+        int from = commitIds.size() - N;
+        commitIds = commitIds.subList(from, commitIds.size());
+        Revision currentRevision = new Revision("", from);
         int start = 0;
         boolean existsInDb = false;
-        Revision currentRevision = new Revision("", 0);
         try {
             existsInDb = RetrieveFromDB.ProjectExistsInDatabase(project);
             if (existsInDb) {
@@ -108,6 +111,9 @@ public class Main {
         for (int i = start; i < commitIds.size(); ++i) {
             Objects.requireNonNull(currentRevision).setSha(commitIds.get(i));
             currentRevision.setRevisionCount(currentRevision.getRevisionCount() + 1);
+            if (currentRevision.getSha().equals("16ff4466cd5e01ec1d59dce55294a28d908e314c")) {
+                System.out.println();
+            }
             checkout(Objects.requireNonNull(project), Objects.requireNonNull(currentRevision), Objects.requireNonNull(git));
             System.out.printf("Calculating metrics for commit %s (%d)...\n", currentRevision.getSha(), currentRevision.getRevisionCount());
             try {
@@ -198,23 +204,11 @@ public class Main {
     private static List<String> getCommitIds(Git git) {
         List<String> commitIds = new ArrayList<>();
         try {
-            String treeName = getHeadName(git.getRepository());
-            for (RevCommit commit : git.log().add(git.getRepository().resolve(treeName)).call())
+            for (RevCommit commit : git.log().call())
                 commitIds.add(commit.getName());
         } catch (Exception ignored) {
         }
         return commitIds;
-    }
-
-    public static String getHeadName(Repository repo) {
-        String result = null;
-        try {
-            ObjectId id = repo.resolve(Constants.HEAD);
-            result = id.getName();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return result;
     }
 
     /**
@@ -240,15 +234,18 @@ public class Main {
                 Set<DiffEntry> modifyDiffEntries = new HashSet<>();
                 Set<DiffEntry> renameDiffEntries = new HashSet<>();
                 Set<DiffEntry> deleteDiffEntries = new HashSet<>();
-                for (org.eclipse.jgit.diff.DiffEntry entry : diffFormatter.scan(diffWith, headCommit)) {
+                RenameDetector renameDetector = new RenameDetector(git.getRepository());
+                renameDetector.addAll(diffFormatter.scan(diffWith, headCommit));
+                for (org.eclipse.jgit.diff.DiffEntry entry : renameDetector.compute()) {
                     if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.ADD) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.COPY) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         addDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
                     else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.MODIFY) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         modifyDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
-                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.RENAME) && entry.getNewPath().toLowerCase().endsWith(".java"))
-                        renameDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
-                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) && entry.getOldPath().toLowerCase().endsWith(".java"))
                         deleteDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.RENAME) && entry.getNewPath().toLowerCase().endsWith(".java")) {
+                        renameDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
+                    }
                 }
                 principalResponseEntities[0] = new PrincipalResponseEntity(headCommit.getName(), headCommit.getCommitTime(), addDiffEntries, modifyDiffEntries, renameDiffEntries, deleteDiffEntries);
             } catch (IOException e) {
@@ -326,8 +323,8 @@ public class Main {
             entity.getRenameDiffEntries()
                     .forEach(diffEntry -> {
                         for (JavaFile javaFile : Globals.getJavaFiles()) {
-                            if (javaFile.getPath().endsWith(diffEntry.getOldFilePath()))
-                                javaFile.setPath(javaFile.getPath().replace(diffEntry.getOldFilePath(), diffEntry.getNewFilePath()));
+                            if (javaFile.getPath().equals(diffEntry.getOldFilePath()))
+                                javaFile.setPath(diffEntry.getNewFilePath());
                         }
                     });
     }
@@ -388,6 +385,10 @@ public class Main {
     private static void setMetrics(Project project, Revision currentRevision, Set<JavaFile> jfs) {
         if (jfs.isEmpty())
             return;
+        Globals.getJavaFiles().forEach(javaFile -> {
+            javaFile.getQualityMetrics().getClassChildren().clear();
+            javaFile.getQualityMetrics().setNOCC(0);
+        });
         int resultCode = MetricsCalculator.start(project.getClonePath(), jfs);
         if (resultCode == -1)
             return;
@@ -429,7 +430,7 @@ public class Main {
     private static void registerMetrics(String[] calcEntries, JavaFile jf, String className) {
         jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
-        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
+//        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
         jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
         jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
         jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
@@ -459,7 +460,7 @@ public class Main {
             jf.getQualityMetrics().setRevision(new Revision(revision.getSha(), revision.getRevisionCount()));
             jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
             jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
-            jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
+//            jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
             jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
             jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
             jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
@@ -473,7 +474,7 @@ public class Main {
         } else {
             jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
             jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
-            jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
+//            jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
             jf.getQualityMetrics().setRFC(jf.getQualityMetrics().getRFC() + Double.parseDouble(calcEntries[5]));
             if (Double.parseDouble(calcEntries[6]) > 0)
                 jf.getQualityMetrics().setLCOM(jf.getQualityMetrics().getLCOM() + Double.parseDouble(calcEntries[6]));
@@ -501,7 +502,7 @@ public class Main {
         jf.setOldQualityMetrics(jf.getQualityMetrics());
         jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
-        jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
+//        jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
         jf.getQualityMetrics().setRFC(jf.getQualityMetrics().getRFC() + Double.parseDouble(calcEntries[5]));
         if (Double.parseDouble(calcEntries[6]) > 0)
             jf.getQualityMetrics().setLCOM(jf.getQualityMetrics().getLCOM() + Double.parseDouble(calcEntries[6]));

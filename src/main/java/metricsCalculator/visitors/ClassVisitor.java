@@ -13,6 +13,10 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserClassDeclaration;
+import com.github.javaparser.symbolsolver.model.typesystem.ReferenceTypeImpl;
+import data.Globals;
+import infrastructure.interest.JavaFile;
 import metricsCalculator.calculator.MetricsCalculator;
 import metricsCalculator.containers.ClassMetricsContainer;
 import metricsCalculator.metrics.ClassMetrics;
@@ -44,12 +48,11 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
             this.myFile = cu.getStorage().get().getPath().toString().replace("\\", "/").replace(MetricsCalculator.getFullPathOfProject(), "").substring(1);
             this.myClassName = jc.resolve().getQualifiedName();
             if (jc.isNestedType())
-                this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)","!");
+                this.myClassName = this.myClassName.replaceAll("\\.(?!.*\\.)", "!");
         } catch (Exception e) {
             return;
         }
-        this.classMetrics = this.classMetricsContainer
-                .getMetrics(this.myClassName);
+        this.classMetrics = this.classMetricsContainer.getMetrics(this.myClassName);
         this.srcRoot = srcRoot;
     }
 
@@ -92,22 +95,34 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         if (javaClass.isAbstract())
             this.classMetrics.setAbstract();
 
-        List<String> superClassNames = getSuperClassNames(javaClass);
-
         visitAllClassMethods(javaClass);
 
-        if (Objects.nonNull(superClassNames))
-            superClassNames
-                    .stream()
-                    .filter(superClass -> {
-                        try {
-                            return this.withinAnalysisBounds(superClass);
-                        } catch (Throwable t) { return false; }
-                    }).forEach(superClassName -> {
-                        this.classMetricsContainer.getMetrics(superClassName).incNoc();
-                        registerCoupling(superClassName);
-            });
+        List<String> superClassNames = getSuperClassNames(javaClass);
+
+        if (Objects.nonNull(superClassNames)) {
+
+            for (String superClassName : superClassNames) {
+                if (this.withinAnalysisBounds(superClassName)) {
+                    registerCoupling(superClassName);
+                }
+            }
+
+        }
         calculateMetrics(javaClass);
+    }
+
+    /**
+     * Find ancestor java file
+     *
+     * @param superClassNames the class names of ancestors
+     * @return java file corresponding to ancestor
+     */
+    private JavaFile findAncestorFile(List<String> superClassNames) {
+        for (String superClassName : superClassNames)
+            for (JavaFile javaFile : Globals.getJavaFiles())
+                if (javaFile.containsClass(superClassName))
+                    return javaFile;
+        return null;
     }
 
     /**
@@ -134,7 +149,9 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
                     .map(extendedType -> {
                         try {
                             return extendedType.resolve().getQualifiedName();
-                        } catch (UnsolvedSymbolException e) { return null; }
+                        } catch (UnsolvedSymbolException e) {
+                            return null;
+                        }
                     })
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -365,7 +382,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
 
         try {
             incRFC(method.resolve().getQualifiedName());
-        } catch (UnsolvedSymbolException ignored) {}
+        } catch (UnsolvedSymbolException ignored) {
+        }
         investigateExceptions(method);
         investigateModifiers(method);
         investigateParameters(method);
@@ -435,7 +453,7 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *
      * @param method the method we are referring to
      */
-    private void investigateInvocation(MethodDeclaration method){
+    private void investigateInvocation(MethodDeclaration method) {
         try {
             for (MethodCallExpr methodCallExpr : method.findAll(MethodCallExpr.class)) {
                 try {
@@ -455,8 +473,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
      *                  the class we are referring to
      */
     private void registerCoupling(String className) {
-        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.')+1) : className.substring(className.lastIndexOf('.'));
-        String simpleMyClassName = this.myClassName.contains(".") ? this.myClassName.substring(this.myClassName.lastIndexOf('.')+1) : this.myClassName.substring(this.myClassName.lastIndexOf('.'));
+        String simpleClassName = className.contains(".") ? className.substring(className.lastIndexOf('.') + 1) : className.substring(className.lastIndexOf('.'));
+        String simpleMyClassName = this.myClassName.contains(".") ? this.myClassName.substring(this.myClassName.lastIndexOf('.') + 1) : this.myClassName.substring(this.myClassName.lastIndexOf('.'));
 
         if (this.compilationUnit.getClassByName(simpleClassName).isPresent() && this.compilationUnit.getClassByName(simpleMyClassName).isPresent()) {
             ClassOrInterfaceDeclaration cl = this.compilationUnit.getClassByName(simpleClassName).get();
@@ -583,7 +601,8 @@ public class ClassVisitor extends VoidVisitorAdapter<Void> {
         try {
             calculateDit(javaClass.resolve().getQualifiedName(), Objects.nonNull(superClassName) && javaClass.resolve().getAncestors().size() != 0
                     ? javaClass.getExtendedTypes().get(0).resolve() : null);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
 
         this.classMetrics.setDac(calculateDac(javaClass));
         this.classMetrics.setSize2(calculateSize2(javaClass));
