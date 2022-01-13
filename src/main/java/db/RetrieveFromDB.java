@@ -102,7 +102,7 @@ public class RetrieveFromDB {
         String repoName = project.getRepo();
         try {
             Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement st = conn.prepareStatement("SELECT revision_count, m.sha AS sha, classes_num, complexity, dac, dit, interest_eu, interest_in_hours, avg_interest_per_loc, interest_in_avg_loc, sum_interest_per_loc, lcom, mpc, nocc, old_size1, rfc, size1, size2, wmc, nom, kappa, cbo, file_path, class_names FROM metrics m JOIN files f ON m.fid = f.fid WHERE m.pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?) AND revision_count = (SELECT MAX(revision_count) FROM metrics WHERE pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?))");
+            PreparedStatement st = conn.prepareStatement("SELECT revision_count, m.sha AS sha, classes_num, complexity, dac, dit, interest_eu, interest_in_hours, avg_interest_per_loc, interest_in_avg_loc, sum_interest_per_loc, lcom, mpc, nocc, rfc, size1, size2, wmc, nom, kappa, cbo, file_path, class_names FROM metrics m JOIN files f ON m.fid = f.fid WHERE m.pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?) AND revision_count = (SELECT MAX(revision_count) FROM metrics WHERE pid = (SELECT pid FROM projects WHERE owner = ? AND repo = ?))");
             st.setString(1, owner);
             st.setString(2, repoName);
             st.setString(3, owner);
@@ -124,7 +124,6 @@ public class RetrieveFromDB {
                 Double lcom = resultSet.getDouble("lcom");
                 Double mpc = resultSet.getDouble("mpc");
                 Integer nocc = resultSet.getInt("nocc");
-                Integer oldSize1 = resultSet.getInt("old_size1");
                 Double rfc = resultSet.getDouble("rfc");
                 Integer size1 = resultSet.getInt("size1");
                 Integer size2 = resultSet.getInt("size2");
@@ -134,7 +133,7 @@ public class RetrieveFromDB {
                 Double kappa = resultSet.getDouble("kappa");
                 Array classesArr = resultSet.getArray("class_names");
                 Set<String> classes = Set.of((String[]) (classesArr != null ? classesArr.getArray() : new HashSet<>()));
-                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(new Revision(sha, revisionCount), classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, oldSize1, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa, classes, new Revision(sha, revisionCount)));
+                Globals.getJavaFiles().add(new JavaFile(filePath, new QualityMetrics(new Revision(sha, revisionCount), classesNum, complexity, dit, nocc, rfc, lcom, wmc, nom, mpc, dac, cbo, size1, size2), interestInEuros, interestInHours, avgInterestPerLoc, interestInAvgLoc, sumInterestPerLoc, kappa, classes, new Revision(sha, revisionCount)));
             }
         } catch (SQLException e) {
             System.out.println(e);

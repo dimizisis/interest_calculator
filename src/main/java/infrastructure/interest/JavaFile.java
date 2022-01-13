@@ -128,7 +128,6 @@ public class JavaFile {
 
     public void setOldQualityMetrics(QualityMetrics qualityMetrics) {
         if (Objects.nonNull(qualityMetrics)) {
-            this.oldQualityMetrics.setClassChildren(qualityMetrics.getClassChildren());
             this.oldQualityMetrics.setDAC(qualityMetrics.getDAC());
             this.oldQualityMetrics.setDIT(qualityMetrics.getDIT());
             this.oldQualityMetrics.setLCOM(qualityMetrics.getLCOM());
@@ -141,7 +140,6 @@ public class JavaFile {
             this.oldQualityMetrics.setWMC(qualityMetrics.getWMC());
             this.oldQualityMetrics.setCBO(qualityMetrics.getCBO());
             this.oldQualityMetrics.setComplexity(qualityMetrics.getComplexity());
-            this.oldQualityMetrics.setOldSIZE1(qualityMetrics.getOldSIZE1());
             this.oldQualityMetrics.setClassesNum(qualityMetrics.getClassesNum());
             this.oldQualityMetrics.setRevision(new Revision(getRevision().getSha(), getRevision().getRevisionCount()));
         }
