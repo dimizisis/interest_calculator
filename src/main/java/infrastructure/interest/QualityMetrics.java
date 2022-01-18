@@ -2,9 +2,7 @@ package infrastructure.interest;
 
 import infrastructure.Revision;
 
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 
 public final class QualityMetrics {
 

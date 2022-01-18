@@ -39,20 +39,16 @@ public class JavaFile {
         classes.add(className);
     }
 
-    public boolean containsClass(String className) {
-        return classes.contains(className);
-    }
-
     public void calculateInterest() {
         Globals
                 .getMiner()
-                .detectAtCommit(Objects.requireNonNull(Globals.getGit()).getRepository(), JavaFile.this.getQualityMetrics().getRevision().getSha(), new CustomRefactoringHandler(JavaFile.this.getPath()));
+                .detectAtCommit(Objects.requireNonNull(Globals.getGit()).getRepository(), getRevision().getSha(), new CustomRefactoringHandler(JavaFile.this.getPath()));
         if (Globals.getHasRefactoring()) {
             this.getInterest().calculate();
-            this.getK().update(this.getOldQualityMetrics().getSIZE1());
+            this.getK().update(this.getQualityMetrics().getSIZE1());
         }
         else {
-            this.getK().update(this.getOldQualityMetrics().getSIZE1());
+            this.getK().update(this.getQualityMetrics().getSIZE1());
             this.getInterest().calculate();
         }
         Globals.resetHasRefactoring();
@@ -204,13 +200,13 @@ public class JavaFile {
 
             if (Globals.getHasRefactoring()) {
 
-                if (topFiveNeighbors.isEmpty())
+                if (this.getTopFiveNeighbors().isEmpty())
                     return;
 
                 /* Find Top 5 Neighbors */
-                topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
+                this.setTopFiveNeighbors(findTopFiveNeighbors(similarityOfFiles));
 
-                if (Objects.isNull(topFiveNeighbors))
+                if (Objects.isNull(this.getTopFiveNeighbors()))
                     return;
 
                 if (JavaFile.this.getOldQualityMetrics().equals(JavaFile.this.getQualityMetrics()))
@@ -219,20 +215,20 @@ public class JavaFile {
             } else {
 
                 /* Find Top 5 Neighbors */
-                topFiveNeighbors = findTopFiveNeighbors(similarityOfFiles);
+                this.setTopFiveNeighbors(findTopFiveNeighbors(similarityOfFiles));
 
-                if (Objects.isNull(topFiveNeighbors))
+                if (Objects.isNull(this.getTopFiveNeighbors()))
                     return;
 
                 /* Get optimal metrics & normalize (add one smoothing) */
-                this.optimalMetrics = getOptimalMetrics(topFiveNeighbors);
-                this.optimalMetrics.normalize();
+                this.setOptimalMetrics(getOptimalMetrics(this.getTopFiveNeighbors()));
+                this.getOptimalMetrics().normalize();
 
             }
 
 			/* Calculate the interest per LOC
                Get difference optimal to actual */
-            this.setSumInterestPerLOC(this.calculateInterestPerLoc(JavaFile.this, this.optimalMetrics));
+            this.setSumInterestPerLOC(this.calculateInterestPerLoc(JavaFile.this, this.getOptimalMetrics()));
 
             this.setAvgInterestPerLOC(this.getSumInterestPerLOC() / 10);
 
@@ -495,6 +491,14 @@ public class JavaFile {
 
         public Set<JavaFile> getTopFiveNeighbors() {
             return topFiveNeighbors;
+        }
+
+        public QualityMetrics getOptimalMetrics() {
+            return optimalMetrics;
+        }
+
+        public void setOptimalMetrics(QualityMetrics optimalMetrics) {
+            this.optimalMetrics = optimalMetrics;
         }
 
         public void setTopFiveNeighbors(Set<JavaFile> topFiveNeighbors) {
