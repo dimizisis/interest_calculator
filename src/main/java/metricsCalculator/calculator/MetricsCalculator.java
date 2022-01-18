@@ -36,7 +36,7 @@ public class MetricsCalculator {
      *
      * @return 0 if everything went ok, -1 otherwise
      */
-    public int start () {
+    public int start() {
         ProjectRoot projectRoot = getProjectRoot(project.getClonePath());
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try {
@@ -57,7 +57,7 @@ public class MetricsCalculator {
      *
      * @return 0 if everything went ok, -1 otherwise
      */
-    public int start (Set<String> filesToAnalyze) {
+    public int start(Set<String> filesToAnalyze) {
         ProjectRoot projectRoot = getProjectRoot(project.getClonePath());
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try {
@@ -106,8 +106,8 @@ public class MetricsCalculator {
 
     /**
      * Creates the file set (add appropriate classes)
-     * @param sourceRoots the source roots of project
      *
+     * @param sourceRoots the source roots of project
      * @return size of the file set (int)
      */
     private int createFileSet(List<SourceRoot> sourceRoots) {
@@ -120,15 +120,24 @@ public class MetricsCalculator {
                                     .filter(res -> res.getResult().isPresent())
                                     .filter(cu -> cu.getResult().get().getStorage().isPresent())
                                     .forEach(cu -> {
+                                        Set<Class> classNames = cu.getResult().get().findAll(ClassOrInterfaceDeclaration.class)
+                                                .stream()
+                                                .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().isPresent())
+                                                .map(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().get())
+                                                .map(Class::new)
+                                                .collect(Collectors.toSet());
+                                        Set<Class> enumNames = cu.getResult().get().findAll(EnumDeclaration.class)
+                                                .stream()
+                                                .filter(enumDeclaration -> enumDeclaration.getFullyQualifiedName().isPresent())
+                                                .map(enumDeclaration -> enumDeclaration.getFullyQualifiedName().get())
+                                                .map(Class::new)
+                                                .collect(Collectors.toSet());
+                                        classNames.addAll(enumNames);
                                         try {
                                             project.getJavaFiles().add(new JavaFile(cu.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1),
-                                                    cu.getResult().get().findAll(ClassOrInterfaceDeclaration.class)
-                                                            .stream()
-                                                            .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().isPresent())
-                                                            .map(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().get())
-                                                            .map(Class::new)
-                                                            .collect(Collectors.toSet())));
-                                        } catch (Throwable ignored) {}
+                                                    classNames));
+                                        } catch (Throwable ignored) {
+                                        }
                                     });
                         } catch (Exception ignored) {
                         }
@@ -142,20 +151,20 @@ public class MetricsCalculator {
      * Starts the calculations
      *
      * @param sourceRoots the list of source roots of project
-     *
      */
     private void startCalculations(List<SourceRoot> sourceRoots) {
-            sourceRoots
-                    .forEach(sourceRoot -> {
-                        try {
-                            sourceRoot.tryToParse()
-                                    .stream()
-                                    .filter(res -> res.getResult().isPresent())
-                                    .forEach(res -> {
-                                        analyzeCompilationUnit(res.getResult().get());
-                                    });
-                        } catch (Exception ignored) {}
-                    });
+        sourceRoots
+                .forEach(sourceRoot -> {
+                    try {
+                        sourceRoot.tryToParse()
+                                .stream()
+                                .filter(res -> res.getResult().isPresent())
+                                .forEach(res -> {
+                                    analyzeCompilationUnit(res.getResult().get());
+                                });
+                    } catch (Exception ignored) {
+                    }
+                });
 
     }
 
@@ -163,7 +172,6 @@ public class MetricsCalculator {
      * Starts the calculations
      *
      * @param sourceRoots the list of source roots of project
-     *
      */
     private void startCalculations(List<SourceRoot> sourceRoots, Set<String> filesToAnalyze) {
         sourceRoots
@@ -177,7 +185,8 @@ public class MetricsCalculator {
                                 .forEach(res -> {
                                     analyzeCompilationUnit(res.getResult().get());
                                 });
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 });
 
     }
@@ -186,7 +195,6 @@ public class MetricsCalculator {
      * Analyzes the compilation unit given.
      *
      * @param cu the compilation unit given
-     *
      */
     private void analyzeCompilationUnit(CompilationUnit cu) {
         analyzeClassOrInterfaces(cu);
@@ -197,13 +205,13 @@ public class MetricsCalculator {
      * Analyzes the classes (or interfaces) given a compilation unit.
      *
      * @param cu the compilation unit given
-     *
      */
     private void analyzeClassOrInterfaces(CompilationUnit cu) {
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(cl -> {
             try {
                 cl.accept(new ClassVisitor(project.getJavaFiles(), cu.getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1), cl), null);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         });
     }
 
@@ -211,13 +219,13 @@ public class MetricsCalculator {
      * Analyzes the enumerations given a compilation unit.
      *
      * @param cu the compilation unit given
-     *
      */
     private void analyzeEnums(CompilationUnit cu) {
         cu.findAll(EnumDeclaration.class).forEach(cl -> {
             try {
                 cl.accept(new ClassVisitor(project.getJavaFiles(), cu.getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1), cl), null);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         });
     }
 
