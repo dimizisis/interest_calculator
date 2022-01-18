@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import data.Globals;
@@ -46,7 +47,7 @@ public class Main {
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.OFF);
 
-        if (args.length < 6)
+        if (args.length < 5)
             System.exit(-2);
 
         DatabaseConnection.setDatabaseDriver(args[1]);
@@ -54,7 +55,7 @@ public class Main {
         DatabaseConnection.setDatabaseUsername(args[3]);
         DatabaseConnection.setDatabasePassword(args[4]);
 
-        Project project = new Project(args[0], args[5]);
+        Project project = new Project(args[0]);
 
         try {
             deleteSourceCode(new File(project.getClonePath()));
@@ -242,7 +243,7 @@ public class Main {
                 RenameDetector renameDetector = new RenameDetector(git.getRepository());
                 renameDetector.addAll(diffFormatter.scan(diffWith, headCommit));
                 for (org.eclipse.jgit.diff.DiffEntry entry : renameDetector.compute()) {
-                    if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.ADD) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.COPY) && entry.getNewPath().toLowerCase().endsWith(".java"))
+                    if ((entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.ADD) || entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.COPY)) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         addDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
                     else if (entry.getChangeType().equals(org.eclipse.jgit.diff.DiffEntry.ChangeType.MODIFY) && entry.getNewPath().toLowerCase().endsWith(".java"))
                         modifyDiffEntries.add(new DiffEntry(entry.getOldPath(), entry.getNewPath(), entry.getChangeType().toString()));
@@ -315,15 +316,15 @@ public class Main {
      *
      * @param project         the project we are referring to
      * @param currentRevision the revision we are analysing
-     * @param entity     the entity with the list containing the diff entries received.
+     * @param entity          the entity with the list containing the diff entries received.
      */
     private static void setMetrics(Project project, Revision currentRevision, PrincipalResponseEntity entity) {
         if (!entity.getDeleteDiffEntries().isEmpty())
             removeDeletedFiles(currentRevision, entity.getDeleteDiffEntries());
         if (!entity.getAddDiffEntries().isEmpty())
-            setMetrics(project, currentRevision, entity.getAddDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
+            setMetrics(project, currentRevision, entity.getAddDiffEntries().stream().map(DiffEntry::getNewFilePath).collect(Collectors.toSet()));
         if (!entity.getModifyDiffEntries().isEmpty())
-            setMetrics(project, currentRevision, entity.getModifyDiffEntries().stream().map(diffEntry -> new JavaFile(diffEntry.getNewFilePath(), currentRevision)).collect(Collectors.toSet()));
+            setMetrics(project, currentRevision, entity.getModifyDiffEntries().stream().map(DiffEntry::getNewFilePath).collect(Collectors.toSet()));
         if (!entity.getRenameDiffEntries().isEmpty())
             entity.getRenameDiffEntries()
                     .forEach(diffEntry -> {
@@ -340,34 +341,38 @@ public class Main {
      * @param project the project we are referring to
      */
     private static void setMetrics(Project project, Revision currentRevision) {
-        int resultCode = MetricsCalculator.start(project.getClonePath());
+        MetricsCalculator mc = new MetricsCalculator(new metricsCalculator.infrastructure.entities.Project(project.getClonePath()));
+        int resultCode = mc.start();
         if (resultCode == -1)
             return;
-        String st = MetricsCalculator.printResults();
-        MetricsCalculator.reset();
+        String st = mc.printResults();
         String[] s = st.split("\\r?\\n");
         try {
             for (int i = 1; i < s.length; ++i) {
-                String[] column = s[i].split(";");
+                String[] column = s[i].split("\t");
                 String filePath = column[0];
-                String className = column[1];
+                List<String> classNames;
+                try {
+                    classNames = Arrays.asList(column[14].split(","));
+                } catch (PatternSyntaxException e) {
+                    classNames = new ArrayList<>();
+                }
+
                 JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                     jf = new JavaFile(filePath, currentRevision);
-                    jf.addClassName(className);
-                    registerMetrics(column, jf, className);
+                    registerMetrics(column, jf, classNames);
                     Globals.addJavaFile(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        appendMetrics(column, jf, className, currentRevision);
+                        registerMetrics(column, jf, classNames);
                     }
                 }
             }
         } catch (Exception ignored) {
         }
     }
-
     /**
      * Finds java file by its path
      *
@@ -388,33 +393,38 @@ public class Main {
      * @param currentRevision the revision we are analysing
      * @param jfs             the list of java files
      */
-    private static void setMetrics(Project project, Revision currentRevision, Set<JavaFile> jfs) {
+    private static void setMetrics(Project project, Revision currentRevision, Set<String> jfs) {
         if (jfs.isEmpty())
             return;
-        int resultCode = MetricsCalculator.start(project.getClonePath(), jfs);
+        MetricsCalculator mc = new MetricsCalculator(new metricsCalculator.infrastructure.entities.Project(project.getClonePath()));
+        int resultCode = mc.start(jfs);
         if (resultCode == -1)
             return;
-        String st = MetricsCalculator.printResults();
-        MetricsCalculator.reset();
+        String st = mc.printResults(jfs);
         String[] s = st.split("\\r?\\n");
-        Set<JavaFile> toCalculate = new HashSet<>();
         try {
+            Set<JavaFile> toCalculate = new HashSet<>();
             for (int i = 1; i < s.length; ++i) {
-                String[] column = s[i].split(";");
+                String[] column = s[i].split("\t");
                 String filePath = column[0];
-                String className = column[1];
+                List<String> classNames;
+                try {
+                    classNames = Arrays.asList(column[14].split(","));
+                } catch (PatternSyntaxException e) {
+                    classNames = new ArrayList<>();
+                }
 
                 JavaFile jf;
                 if (Globals.getJavaFiles().stream().noneMatch(javaFile -> javaFile.getPath().equals(filePath.replace("\\", "/")))) {
                     jf = new JavaFile(filePath, currentRevision);
-                    registerMetrics(column, jf, className);
+                    registerMetrics(column, jf, classNames);
                     Globals.addJavaFile(jf);
                     toCalculate.add(jf);
                 } else {
                     jf = getAlreadyDefinedFile(filePath);
                     if (Objects.nonNull(jf)) {
-                        appendMetrics(column, jf, className, currentRevision);
                         toCalculate.add(jf);
+                        registerMetrics(column, jf, classNames);
                     }
                 }
             }
@@ -422,60 +432,28 @@ public class Main {
         } catch (Exception ignored) {
         }
     }
-
     /**
      * Register Metrics to specified java file
      *
      * @param calcEntries entries taken from MetricsCalculator's results
      * @param jf          the java file we are registering metrics to
      */
-    private static void registerMetrics(String[] calcEntries, JavaFile jf, String className) {
+    private static void registerMetrics(String[] calcEntries, JavaFile jf, List<String> classNames) {
+        jf.getQualityMetrics().setClassesNum(Integer.parseInt(calcEntries[1]));
         jf.getQualityMetrics().setWMC(Double.parseDouble(calcEntries[2]));
         jf.getQualityMetrics().setDIT(Integer.parseInt(calcEntries[3]));
-        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[4]));
-        jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[5]));
-        jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[6]));
-        jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[7]));
-        jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[8]));
-        jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[9]));
-        jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[10]));
-        jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
-        jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[11]));
-        jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[12]));
-        jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[13]));
-        jf.addClassName(className);
-        jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
-    }
-
-    /**
-     * Append Metrics to specified java file
-     *
-     * @param calcEntries entries taken from MetricsCalculator's results
-     * @param jf          the java file we are registering metrics to
-     */
-    private static void appendMetrics(String[] calcEntries, JavaFile jf, String className, Revision revision) {
-        if (!jf.getQualityMetrics().getRevision().equals(revision)) {
-            jf.getQualityMetrics().zero();
-            jf.getClasses().clear();
-            jf.getQualityMetrics().setRevision(new Revision(revision.getSha(), revision.getRevisionCount()));
-        }
-        jf.getQualityMetrics().setWMC(jf.getQualityMetrics().getWMC() + Double.parseDouble(calcEntries[2]));
-        jf.getQualityMetrics().setDIT(jf.getQualityMetrics().getDIT() + Integer.parseInt(calcEntries[3]));
-        jf.getQualityMetrics().setNOCC(jf.getQualityMetrics().getNOCC() + Integer.parseInt(calcEntries[4]));
-        jf.getQualityMetrics().setRFC(jf.getQualityMetrics().getRFC() + Double.parseDouble(calcEntries[5]));
-        if (Double.parseDouble(calcEntries[6]) > 0)
-            jf.getQualityMetrics().setLCOM(jf.getQualityMetrics().getLCOM() + Double.parseDouble(calcEntries[6]));
-        if (Double.parseDouble(calcEntries[7]) > 0)
-            jf.getQualityMetrics().setComplexity(jf.getQualityMetrics().getComplexity() + Double.parseDouble(calcEntries[7]));
-        jf.getQualityMetrics().setNOM(jf.getQualityMetrics().getNOM() + Double.parseDouble(calcEntries[8]));
-        jf.getQualityMetrics().setMPC(jf.getQualityMetrics().getMPC() + Double.parseDouble(calcEntries[9]));
-        jf.getQualityMetrics().setDAC(jf.getQualityMetrics().getDAC() + Integer.parseInt(calcEntries[10]));
-        jf.getQualityMetrics().setOldSIZE1(jf.getQualityMetrics().getSIZE1());
-        jf.getQualityMetrics().setSIZE1(jf.getQualityMetrics().getSIZE1() + Integer.parseInt(calcEntries[11]));
-        jf.getQualityMetrics().setSIZE2(jf.getQualityMetrics().getSIZE2() + Integer.parseInt(calcEntries[12]));
-        jf.getQualityMetrics().setCBO(jf.getQualityMetrics().getCBO() + Double.parseDouble(calcEntries[13]));
-        jf.addClassName(className);
-        jf.getQualityMetrics().setClassesNum(jf.getClasses().size());
+        jf.getQualityMetrics().setComplexity(Double.parseDouble(calcEntries[4]));
+        jf.getQualityMetrics().setLCOM(Double.parseDouble(calcEntries[5]));
+        jf.getQualityMetrics().setMPC(Double.parseDouble(calcEntries[6]));
+        jf.getQualityMetrics().setNOM(Double.parseDouble(calcEntries[7]));
+        jf.getQualityMetrics().setRFC(Double.parseDouble(calcEntries[8]));
+        jf.getQualityMetrics().setDAC(Integer.parseInt(calcEntries[9]));
+        jf.getQualityMetrics().setNOCC(Integer.parseInt(calcEntries[10]));
+        jf.getQualityMetrics().setCBO(Double.parseDouble(calcEntries[11]));
+        jf.getQualityMetrics().setSIZE1(Integer.parseInt(calcEntries[12]));
+        jf.getQualityMetrics().setSIZE2(Integer.parseInt(calcEntries[13]));
+        for (String className : classNames)
+            jf.addClassName(className);
     }
 
 }

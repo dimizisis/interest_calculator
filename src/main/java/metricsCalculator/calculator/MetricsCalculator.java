@@ -1,5 +1,6 @@
 package metricsCalculator.calculator;
 
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -10,38 +11,24 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeS
 import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
-import infrastructure.interest.JavaFile;
-import metricsCalculator.containers.ClassMetricsContainer;
-import metricsCalculator.containers.PackageMetricsContainer;
-import metricsCalculator.containers.ProjectMetricsContainer;
-import metricsCalculator.metrics.ProjectMetrics;
-import metricsCalculator.output.PrintResults;
+import metricsCalculator.infrastructure.entities.Class;
+import metricsCalculator.infrastructure.entities.JavaFile;
+import metricsCalculator.infrastructure.entities.Project;
 import metricsCalculator.visitors.ClassVisitor;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class MetricsCalculator {
 
-    private static ClassMetricsContainer classMetricsContainer = new ClassMetricsContainer();
-    private static PackageMetricsContainer packageMetricsContainer = new PackageMetricsContainer();
-    private static ProjectMetricsContainer projectMetricsContainer = new ProjectMetricsContainer();
-    private static Set<String> classesToAnalyse = new HashSet<>();
-    private static String currentProject;
-    private static ProjectRoot projectRoot;
-    private static String fullPathOfProject;
+    private final Project project;
 
-    public static void reset() {
-        classMetricsContainer = new ClassMetricsContainer();
-        packageMetricsContainer = new PackageMetricsContainer();
-        projectMetricsContainer = new ProjectMetricsContainer();
-        classesToAnalyse = new HashSet<>();
-        currentProject = "";
-        projectRoot = null;
-        fullPathOfProject = "";
+    public MetricsCalculator(Project project) {
+        this.project = project;
     }
 
     /**
@@ -49,21 +36,19 @@ public class MetricsCalculator {
      *
      * @return 0 if everything went ok, -1 otherwise
      */
-    public static int start(String projectDir) {
-        currentProject = projectDir;
-        projectRoot = findProjectRoot();
-        setFullPathOfProject(getProjectRoot().getRoot().toAbsolutePath().toString().replace("\\", "/"));
+    public int start () {
+        ProjectRoot projectRoot = getProjectRoot(project.getClonePath());
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try {
-            createSymbolSolver();
+            createSymbolSolver(project.getClonePath());
         } catch (IllegalStateException e) {
             return -1;
         }
-        if (createClassSet(sourceRoots) == 0) {
+        if (createFileSet(sourceRoots) == 0) {
             return -1;
         }
         startCalculations(sourceRoots);
-        calculateAllMetrics(getCurrentProject());
+        performAggregation();
         return 0;
     }
 
@@ -72,60 +57,35 @@ public class MetricsCalculator {
      *
      * @return 0 if everything went ok, -1 otherwise
      */
-    public static int start(String projectDir, Set<JavaFile> jfs) {
-        currentProject = projectDir;
-        projectRoot = findProjectRoot();
-        setFullPathOfProject(getProjectRoot().getRoot().toAbsolutePath().toString().replace("\\", "/"));
+    public int start (Set<String> filesToAnalyze) {
+        ProjectRoot projectRoot = getProjectRoot(project.getClonePath());
         List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
         try {
-            createSymbolSolver();
+            createSymbolSolver(project.getClonePath());
         } catch (IllegalStateException e) {
             return -1;
         }
-        if (createClassSet(sourceRoots) == 0) {
+        if (createFileSet(sourceRoots) == 0) {
             return -1;
         }
-        startCalculations(sourceRoots, jfs);
-        calculateAllMetrics(getCurrentProject());
+        startCalculations(sourceRoots, filesToAnalyze);
+        performAggregation();
         return 0;
     }
 
     /**
-     * Start the whole process
-     *
-     * @return 0 if everything went ok, -1 otherwise
+     * Aggregates quality metrics
      */
-    public static int start(String projectDir, String filePath) {
-        currentProject = projectDir;
-        projectRoot = findProjectRoot();
-        List<SourceRoot> sourceRoots = projectRoot.getSourceRoots();
-        try {
-            createSymbolSolver();
-        } catch (IllegalStateException e) {
-            return -1;
-        }
-        if (createClassSet(sourceRoots) == 0) {
-            return -1;
-        }
-
-        startCalculations(sourceRoots, filePath);
-        calculateAllMetrics(getCurrentProject());
-        return 0;
+    private void performAggregation() {
+        project.getJavaFiles().forEach(JavaFile::aggregateMetrics);
     }
 
     /**
      * Get the project root
      */
-    public static ProjectRoot getProjectRoot() {
-        return projectRoot;
-    }
-
-    /**
-     * Find the project root
-     */
-    private static ProjectRoot findProjectRoot() {
+    private ProjectRoot getProjectRoot(String projectDir) {
         return new SymbolSolverCollectionStrategy()
-                .collect(Paths.get(getCurrentProject()));
+                .collect(Paths.get(projectDir));
     }
 
     /**
@@ -133,18 +93,24 @@ public class MetricsCalculator {
      * that will be used to identify
      * user-defined classes
      */
-    private static void createSymbolSolver() {
-        TypeSolver javaParserTypeSolver = new JavaParserTypeSolver(new File(getCurrentProject()));
+    private static void createSymbolSolver(String projectDir) {
+        TypeSolver javaParserTypeSolver = new JavaParserTypeSolver(new File(projectDir));
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(javaParserTypeSolver);
+        ParserConfiguration parserConfiguration = new ParserConfiguration();
+        parserConfiguration
+                .setSymbolResolver(symbolSolver)
+                .setAttributeComments(false).setDetectOriginalLineSeparator(true);
         StaticJavaParser
-                .getConfiguration()
-                .setSymbolResolver(symbolSolver);
+                .setConfiguration(parserConfiguration);
     }
 
     /**
-     * Creates the class set (add appropriate classes)
+     * Creates the file set (add appropriate classes)
+     * @param sourceRoots the source roots of project
+     *
+     * @return size of the file set (int)
      */
-    private static int createClassSet(List<SourceRoot> sourceRoots) {
+    private int createFileSet(List<SourceRoot> sourceRoots) {
         try {
             sourceRoots
                     .forEach(sourceRoot -> {
@@ -152,191 +118,134 @@ public class MetricsCalculator {
                             sourceRoot.tryToParse()
                                     .stream()
                                     .filter(res -> res.getResult().isPresent())
-                                    .forEach(res -> addToClassSet(res.getResult().get()));
+                                    .filter(cu -> cu.getResult().get().getStorage().isPresent())
+                                    .forEach(cu -> {
+                                        try {
+                                            project.getJavaFiles().add(new JavaFile(cu.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1),
+                                                    cu.getResult().get().findAll(ClassOrInterfaceDeclaration.class)
+                                                            .stream()
+                                                            .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().isPresent())
+                                                            .map(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().get())
+                                                            .map(Class::new)
+                                                            .collect(Collectors.toSet())));
+                                        } catch (Throwable ignored) {}
+                                    });
                         } catch (Exception ignored) {
                         }
                     });
         } catch (Exception ignored) {
         }
-        return classesToAnalyse.size();
-    }
-
-    /**
-     * Adds a valid class to class set
-     *
-     * @param cu the compilation unit of class provided
-     */
-    private static void addToClassSet(CompilationUnit cu) {
-        try {
-            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
-                try {
-                    classesToAnalyse.add(c.resolve().getQualifiedName());
-                } catch (Exception ignored) {}
-            });
-        } catch (Exception ignored) {
-        }
-        try {
-            cu.findAll(EnumDeclaration.class).forEach(en -> {
-                try {
-                    classesToAnalyse.add(en.resolve().getQualifiedName());
-                } catch (Exception ignored) {
-                }
-            });
-        } catch (Exception ignored) {
-        }
+        return project.getJavaFiles().size();
     }
 
     /**
      * Starts the calculations
      *
      * @param sourceRoots the list of source roots of project
+     *
      */
-    private static void startCalculations(List<SourceRoot> sourceRoots, String filePath) {
-        sourceRoots.forEach(sourceRoot -> {
-            try {
-                sourceRoot.tryToParse()
-                        .stream()
-                        .filter(res -> res.getResult().isPresent())
-                        .filter(res -> res.getResult().get().getStorage().isPresent())
-                        .filter(res -> res.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").endsWith(filePath))
-                        .forEach(res -> {
-                            CompilationUnit cu = res.getResult().get();
-                            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
-                                analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
-                            });
-                        });
-            } catch (IOException ignored) {}
-        });
+    private void startCalculations(List<SourceRoot> sourceRoots) {
+            sourceRoots
+                    .forEach(sourceRoot -> {
+                        try {
+                            sourceRoot.tryToParse()
+                                    .stream()
+                                    .filter(res -> res.getResult().isPresent())
+                                    .forEach(res -> {
+                                        analyzeCompilationUnit(res.getResult().get());
+                                    });
+                        } catch (Exception ignored) {}
+                    });
+
     }
 
     /**
      * Starts the calculations
      *
      * @param sourceRoots the list of source roots of project
+     *
      */
-    private static void startCalculations(List<SourceRoot> sourceRoots, Set<JavaFile> jfs) {
-        sourceRoots.forEach(sourceRoot -> {
-            try {
-                sourceRoot.tryToParse()
-                        .stream()
-                        .filter(res -> res.getResult().isPresent())
-                        .filter(res -> res.getResult().get().getStorage().isPresent())
-                        .filter(res -> jfs.stream().map(JavaFile::getPath).collect(Collectors.toList()).contains(res.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(getFullPathOfProject(), "").substring(1)))
-                        .forEach(res -> {
-                            CompilationUnit cu = res.getResult().get();
-                            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
-                                analyzeCompilationUnit(cu, sourceRoot.getRoot().toString().replace("\\", "/"));
-                            });
-                        });
-            } catch (IOException ignored) {
-            }
-        });
-    }
-
-
-    private static void startCalculations(List<SourceRoot> sourceRoots) {
+    private void startCalculations(List<SourceRoot> sourceRoots, Set<String> filesToAnalyze) {
         sourceRoots
                 .forEach(sourceRoot -> {
                     try {
                         sourceRoot.tryToParse()
                                 .stream()
                                 .filter(res -> res.getResult().isPresent())
-                                .forEach(res -> analyzeCompilationUnit(res.getResult().get(), sourceRoot.getRoot().toString().replace("\\", "/")));
-                    } catch (Exception ignored) {
-                    }
+                                .filter(res -> res.getResult().get().getStorage().isPresent())
+                                .filter(res -> new ArrayList<>(filesToAnalyze).contains(res.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1)))
+                                .forEach(res -> {
+                                    analyzeCompilationUnit(res.getResult().get());
+                                });
+                    } catch (Exception ignored) {}
                 });
-    }
 
-    /**
-     * Calculates all metrics (aggregated) after class by
-     * class visit is over
-     *
-     * @param project the name of the project we are referring to
-     */
-    private static void calculateAllMetrics(String project) {
-        getProjectMetricsContainer().getMetrics(project).calculateAllMetrics(project);
     }
 
     /**
      * Analyzes the compilation unit given.
      *
-     * @param cu         the compilation unit given
-     * @param sourceRoot the compilation unit's source root
+     * @param cu the compilation unit given
+     *
      */
-    private static void analyzeCompilationUnit(CompilationUnit cu, String sourceRoot) {
-        analyzeClassOrInterfaces(cu, sourceRoot);
-        analyzeEnums(cu, sourceRoot);
+    private void analyzeCompilationUnit(CompilationUnit cu) {
+        analyzeClassOrInterfaces(cu);
+        analyzeEnums(cu);
     }
 
     /**
      * Analyzes the classes (or interfaces) given a compilation unit.
      *
-     * @param cu         the compilation unit given
-     * @param sourceRoot the compilation unit's source root
+     * @param cu the compilation unit given
+     *
      */
-    private static void analyzeClassOrInterfaces(CompilationUnit cu, String sourceRoot) {
-        cu.findAll(ClassOrInterfaceDeclaration.class).forEach(c -> {
+    private void analyzeClassOrInterfaces(CompilationUnit cu) {
+        cu.findAll(ClassOrInterfaceDeclaration.class).forEach(cl -> {
             try {
-                c.accept(new ClassVisitor(c, cu, sourceRoot, getClassMetricsContainer()), null);
-            } catch (Exception ignored) {
-            }
+                cl.accept(new ClassVisitor(project.getJavaFiles(), cu.getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1), cl), null);
+            } catch (Exception ignored) {}
         });
     }
 
     /**
      * Analyzes the enumerations given a compilation unit.
      *
-     * @param cu         the compilation unit given
-     * @param sourceRoot the compilation unit's source root
+     * @param cu the compilation unit given
+     *
      */
-    private static void analyzeEnums(CompilationUnit cu, String sourceRoot) {
-        cu.findAll(EnumDeclaration.class).forEach(c -> {
+    private void analyzeEnums(CompilationUnit cu) {
+        cu.findAll(EnumDeclaration.class).forEach(cl -> {
             try {
-                c.accept(new ClassVisitor(c, cu, sourceRoot, getClassMetricsContainer()), null);
-            } catch (Exception ignored) {
+                cl.accept(new ClassVisitor(project.getJavaFiles(), cu.getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1), cl), null);
+            } catch (Exception ignored) {}
+        });
+    }
+
+    public String printResults() {
+        StringBuilder output = new StringBuilder();
+        output.append("FilePath\tClassesNum\tWMC\tDIT\tComplexity\tLCOM\tMPC\tNOM\tRFC\tDAC\tNOCC\tCBO\tSize1\tSize2\tClassNames");
+        try {
+            project.getJavaFiles().forEach(javaFile -> output.append(javaFile.getPath()).append("\t").append(javaFile.getQualityMetrics()).append("\t").append(javaFile.getClassNames()).append("\n"));
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return output.toString();
+    }
+
+    public String printResults(Set<String> filesToAnalyze) {
+        StringBuilder output = new StringBuilder();
+        output.append("FilePath\tClassesNum\tWMC\tDIT\tComplexity\tLCOM\tMPC\tNOM\tRFC\tDAC\tNOCC\tCBO\tSize1\tSize2\tClassNames");
+        try {
+            for (String fileToAnalyze : filesToAnalyze) {
+                for (JavaFile javaFile : project.getJavaFiles()) {
+                    if (javaFile.getPath().equals(fileToAnalyze))
+                        output.append(javaFile.getPath()).append("\t").append(javaFile.getQualityMetrics()).append("\t").append(javaFile.getClassNames()).append("\n");
+                }
             }
-        });
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return output.toString();
     }
 
-    /**
-     * Prints results after the whole process is done
-     */
-    public static String printResults() {
-        PrintResults handler = new PrintResults();
-        Map<?, ?> projects = getProjectMetricsContainer().getProjects();
-        Set<?> projectSet = projects.entrySet();
-        projectSet.forEach(o -> {
-            Map.Entry<?, ?> currentProject = (Map.Entry<?, ?>) o;
-            handler.handleProject((String) currentProject.getKey(), (ProjectMetrics) currentProject.getValue());
-        });
-        return handler.getOutput();
-    }
-
-    public static ClassMetricsContainer getClassMetricsContainer() {
-        return classMetricsContainer;
-    }
-
-    public static PackageMetricsContainer getPackageMetricsContainer() {
-        return packageMetricsContainer;
-    }
-
-    public static ProjectMetricsContainer getProjectMetricsContainer() {
-        return projectMetricsContainer;
-    }
-
-    public static String getCurrentProject() {
-        return currentProject;
-    }
-
-    public static void setFullPathOfProject(String fullPathOfProject) {
-        MetricsCalculator.fullPathOfProject = fullPathOfProject;
-    }
-
-    public static String getFullPathOfProject() {
-        return fullPathOfProject;
-    }
-
-    public static boolean withinAnalysisBounds(String className) {
-        return classesToAnalyse.contains(className);
-    }
 }
