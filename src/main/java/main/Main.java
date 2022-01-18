@@ -353,7 +353,7 @@ public class Main {
                 List<String> classNames;
                 try {
                     classNames = Arrays.asList(column[14].split(","));
-                } catch (PatternSyntaxException e) {
+                } catch (Throwable e) {
                     classNames = new ArrayList<>();
                 }
 
@@ -411,7 +411,7 @@ public class Main {
                 List<String> classNames;
                 try {
                     classNames = Arrays.asList(column[14].split(","));
-                } catch (PatternSyntaxException e) {
+                } catch (Throwable e) {
                     classNames = new ArrayList<>();
                 }
 
