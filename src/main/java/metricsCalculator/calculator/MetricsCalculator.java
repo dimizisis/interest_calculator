@@ -120,24 +120,24 @@ public class MetricsCalculator {
                                     .filter(res -> res.getResult().isPresent())
                                     .filter(cu -> cu.getResult().get().getStorage().isPresent())
                                     .forEach(cu -> {
+                                        Set<Class> classNames = cu.getResult().get().findAll(ClassOrInterfaceDeclaration.class)
+                                                .stream()
+                                                .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().isPresent())
+                                                .map(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().get())
+                                                .map(Class::new)
+                                                .collect(Collectors.toSet());
+                                        Set<Class> enumNames = cu.getResult().get().findAll(EnumDeclaration.class)
+                                                .stream()
+                                                .filter(enumDeclaration -> enumDeclaration.getFullyQualifiedName().isPresent())
+                                                .map(enumDeclaration -> enumDeclaration.getFullyQualifiedName().get())
+                                                .map(Class::new)
+                                                .collect(Collectors.toSet());
+                                        classNames.addAll(enumNames);
                                         try {
                                             project.getJavaFiles().add(new JavaFile(cu.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1),
-                                                    cu.getResult().get().findAll(ClassOrInterfaceDeclaration.class)
-                                                            .stream()
-                                                            .filter(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().isPresent())
-                                                            .map(classOrInterfaceDeclaration -> classOrInterfaceDeclaration.getFullyQualifiedName().get())
-                                                            .map(Class::new)
-                                                            .collect(Collectors.toSet())));
-                                        } catch (Throwable ignored) {}
-                                        try {
-                                            project.getJavaFiles().add(new JavaFile(cu.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1),
-                                                    cu.getResult().get().findAll(EnumDeclaration.class)
-                                                            .stream()
-                                                            .filter(enumDeclaration -> enumDeclaration.getFullyQualifiedName().isPresent())
-                                                            .map(enumDeclaration -> enumDeclaration.getFullyQualifiedName().get())
-                                                            .map(Class::new)
-                                                            .collect(Collectors.toSet())));
-                                        } catch (Throwable ignored) {}
+                                                    classNames));
+                                        } catch (Throwable ignored) {
+                                        }
                                     });
                         } catch (Exception ignored) {
                         }
