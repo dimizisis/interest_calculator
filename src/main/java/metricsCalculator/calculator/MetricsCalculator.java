@@ -129,6 +129,15 @@ public class MetricsCalculator {
                                                             .map(Class::new)
                                                             .collect(Collectors.toSet())));
                                         } catch (Throwable ignored) {}
+                                        try {
+                                            project.getJavaFiles().add(new JavaFile(cu.getResult().get().getStorage().get().getPath().toString().replace("\\", "/").replace(project.getClonePath(), "").substring(1),
+                                                    cu.getResult().get().findAll(EnumDeclaration.class)
+                                                            .stream()
+                                                            .filter(enumDeclaration -> enumDeclaration.getFullyQualifiedName().isPresent())
+                                                            .map(enumDeclaration -> enumDeclaration.getFullyQualifiedName().get())
+                                                            .map(Class::new)
+                                                            .collect(Collectors.toSet())));
+                                        } catch (Throwable ignored) {}
                                     });
                         } catch (Exception ignored) {
                         }
