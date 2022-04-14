@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import data.Globals;
@@ -31,6 +30,7 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import static db.RetrieveFromDB.*;
 
@@ -47,15 +47,20 @@ public class Main {
         BasicConfigurator.configure();
         Logger.getRootLogger().setLevel(Level.OFF);
 
-        if (args.length < 5)
+        String accessToken = null;
+
+        if (args.length < 6)
             System.exit(-2);
 
-        DatabaseConnection.setDatabaseDriver(args[1]);
-        DatabaseConnection.setDatabaseUrl(args[2]);
-        DatabaseConnection.setDatabaseUsername(args[3]);
-        DatabaseConnection.setDatabasePassword(args[4]);
+        DatabaseConnection.setDatabaseDriver(args[2]);
+        DatabaseConnection.setDatabaseUrl(args[3]);
+        DatabaseConnection.setDatabaseUsername(args[4]);
+        DatabaseConnection.setDatabasePassword(args[5]);
 
-        Project project = new Project(args[0]);
+        if (args.length == 7)
+            accessToken = args[6];
+
+        Project project = new Project(args[0], args[1]);
 
         try {
             deleteSourceCode(new File(project.getClonePath()));
@@ -63,7 +68,7 @@ public class Main {
         }
 
         System.out.printf("Cloning %s...\n", project.getUrl());
-        Git git = cloneRepository(project);
+        Git git = cloneRepository(project, accessToken);
 
         System.out.println("Receiving all commit ids...");
         List<String> diffCommitIds = new ArrayList<>();
@@ -90,11 +95,11 @@ public class Main {
         if (Objects.isNull(git))
             System.exit(-1);
 
-        if (!existsInDb || diffCommitIds.containsAll(commitIds)) {
+        if (!existsInDb || new HashSet<>(diffCommitIds).containsAll(commitIds)) {
             start = 1;
             Objects.requireNonNull(currentRevision).setSha(Objects.requireNonNull(commitIds.get(0)));
             Objects.requireNonNull(currentRevision).setRevisionCount(currentRevision.getRevisionCount() + 1);
-            checkout(project, currentRevision, Objects.requireNonNull(git));
+            checkout(project, accessToken, currentRevision, Objects.requireNonNull(git));
             System.out.printf("Calculating metrics for commit %s (%d)...\n", currentRevision.getSha(), currentRevision.getRevisionCount());
             setMetrics(project, currentRevision);
             System.out.println("Calculated metrics for all files from first commit!");
@@ -109,7 +114,7 @@ public class Main {
         for (int i = start; i < commitIds.size(); ++i) {
             Objects.requireNonNull(currentRevision).setSha(commitIds.get(i));
             currentRevision.setRevisionCount(currentRevision.getRevisionCount() + 1);
-            checkout(Objects.requireNonNull(project), Objects.requireNonNull(currentRevision), Objects.requireNonNull(git));
+            checkout(Objects.requireNonNull(project), accessToken, Objects.requireNonNull(currentRevision), Objects.requireNonNull(git));
             System.out.printf("Calculating metrics for commit %s (%d)...\n", currentRevision.getSha(), currentRevision.getRevisionCount());
             try {
                 PrincipalResponseEntity[] responseEntities = getResponseEntitiesAtCommit(git, currentRevision.getSha());
@@ -282,12 +287,20 @@ public class Main {
      * @param project the project we are referring to
      * @return a git object
      */
-    private static Git cloneRepository(Project project) {
+    private static Git cloneRepository(Project project, String accessToken) {
         try {
-            return Git.cloneRepository()
-                    .setURI(project.getUrl())
-                    .setDirectory(new File(project.getClonePath()))
-                    .call();
+            if (Objects.isNull(accessToken))
+                return Git.cloneRepository()
+                        .setURI(project.getUrl())
+                        .setDirectory(new File(project.getClonePath()))
+                        .call();
+            else {
+                return Git.cloneRepository()
+                        .setURI(project.getUrl())
+                        .setDirectory(new File(project.getClonePath()))
+                        .setCredentialsProvider(new UsernamePasswordCredentialsProvider(accessToken, ""))
+                        .call();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -301,12 +314,12 @@ public class Main {
      * @param currentRevision the revision we are checking out to
      * @param git             a git object
      */
-    private static void checkout(Project project, Revision currentRevision, Git git) throws GitAPIException {
+    private static void checkout(Project project, String accessToken, Revision currentRevision, Git git) throws GitAPIException {
         try {
             git.checkout().setCreateBranch(true).setName("version" + currentRevision.getRevisionCount()).setStartPoint(currentRevision.getSha()).call();
         } catch (CheckoutConflictException e) {
             deleteSourceCode(new File(project.getClonePath()));
-            cloneRepository(project);
+            cloneRepository(project, accessToken);
             git.checkout().setCreateBranch(true).setName("version" + currentRevision.getRevisionCount()).setStartPoint(currentRevision.getSha()).call();
         }
     }
