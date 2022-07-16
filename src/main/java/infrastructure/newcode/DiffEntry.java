@@ -1,7 +1,6 @@
 package infrastructure.newcode;
 
-import com.google.gson.annotations.Expose;
-import com.google.gson.annotations.SerializedName;
+import java.util.Objects;
 
 /**
  * @author George Digkas <digasgeo@gmail.com>
@@ -10,14 +9,14 @@ import com.google.gson.annotations.SerializedName;
 
 public class DiffEntry {
 
-	@SerializedName("oldFilePath")
-	@Expose
+	public DiffEntry(String oldFilePath, String newFilePath, String changeType) {
+		this.oldFilePath = oldFilePath;
+		this.newFilePath = newFilePath;
+		this.changeType = changeType;
+	}
+
 	private String oldFilePath;
-	@SerializedName("newFilePath")
-	@Expose
 	private String newFilePath;
-	@SerializedName("changeType")
-	@Expose
 	private String changeType;
 
 	public String getOldFilePath() {
@@ -44,4 +43,16 @@ public class DiffEntry {
 		this.changeType = changeType;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		DiffEntry diffEntry = (DiffEntry) o;
+		return Objects.equals(oldFilePath, diffEntry.oldFilePath) && Objects.equals(newFilePath, diffEntry.newFilePath) && Objects.equals(changeType, diffEntry.changeType);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(oldFilePath, newFilePath, changeType);
+	}
 }

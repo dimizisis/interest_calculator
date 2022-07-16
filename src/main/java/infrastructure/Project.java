@@ -1,6 +1,6 @@
 package infrastructure;
 
-import infrastructure.interest.JavaFile;
+import java.io.File;
 import java.util.*;
 
 /**
@@ -18,6 +18,13 @@ public class Project {
         this.owner = getRepositoryOwner();
         this.repo = getRepositoryName();
         this.clonePath = clonePath;
+    }
+
+    public Project(String url) {
+        this.url = url;
+        this.owner = getRepositoryOwner();
+        this.repo = getRepositoryName();
+        this.clonePath = File.pathSeparator + "tmp" + File.pathSeparator + getRepositoryOwner() + File.pathSeparator + getRepositoryName();
     }
 
     public Project(String url, String owner, String repo, String clonePath) {

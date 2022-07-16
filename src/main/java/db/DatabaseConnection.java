@@ -1,34 +1,18 @@
 package db;
 
-import java.io.FileInputStream;
-import java.nio.file.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class DatabaseConnection {
-    private static final Properties properties;
 
-    static {
-        properties = new Properties();
-        try {
-            Path temp = Files.createTempFile("db", ".properties");
-            Files.copy(Objects.requireNonNull(DatabaseConnection.class.getClassLoader().getResourceAsStream("database.properties")), temp, StandardCopyOption.REPLACE_EXISTING);
-            FileInputStream input = new FileInputStream(temp.toFile());
-            properties.load(input);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static String databaseDriver = properties.getProperty("driver");
-    private static String databaseUrl = properties.getProperty("url");
-    private static String databaseUsername = properties.getProperty("user");
-    private static String databasePassword = properties.getProperty("pass");
+    private static String databaseDriver = "";
+    private static String databaseUrl = "";
+    private static String databaseUsername = "";
+    private static String databasePassword = "";
 
     private static Connection connection = null;
 
@@ -67,5 +51,37 @@ public class DatabaseConnection {
                 logger.log(Level.SEVERE, "Exception was thrown: ", e);
             }
         }
+    }
+
+    public static String getDatabaseDriver() {
+        return databaseDriver;
+    }
+
+    public static void setDatabaseDriver(String databaseDriver) {
+        DatabaseConnection.databaseDriver = databaseDriver;
+    }
+
+    public static String getDatabaseUrl() {
+        return databaseUrl;
+    }
+
+    public static void setDatabaseUrl(String databaseUrl) {
+        DatabaseConnection.databaseUrl = databaseUrl;
+    }
+
+    public static String getDatabaseUsername() {
+        return databaseUsername;
+    }
+
+    public static void setDatabaseUsername(String databaseUsername) {
+        DatabaseConnection.databaseUsername = databaseUsername;
+    }
+
+    public static String getDatabasePassword() {
+        return databasePassword;
+    }
+
+    public static void setDatabasePassword(String databasePassword) {
+        DatabaseConnection.databasePassword = databasePassword;
     }
 }
